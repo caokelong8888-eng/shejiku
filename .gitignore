@@ -1,5 +1,8 @@
-api/studio.db
-api/*.db
+# databases / runtime data
+*.db
+*.db-wal
+*.db-shm
+api/data/
 node_modules/
 .DS_Store
 *.log
