@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="p.library.title">设计详情 — Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' fill='none' stroke='%231D1B18' stroke-width='2.5'/><rect x='10' y='10' width='12' height='12' fill='%231D1B18'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="dash" data-page="design">
+
+  <aside class="dash-side" id="dashSide"></aside>
+  <div class="side-scrim" id="sideScrim"></div>
+
+  <div class="dash-main">
+    <header class="dash-top">
+      <div class="crumb">
+        <button class="menu-btn" id="menuBtn" type="button" aria-label="打开菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <a href="dashboard.html" data-i18n="side.myspace">我的空间</a>
+        <span class="sep">/</span>
+        <a href="library.html" data-i18n="p.library.title">设计库</a>
+        <span class="sep">/</span>
+        <span id="crumbName"></span>
+      </div>
+      <div class="top-actions">
+        <div class="lang-switch" role="group" aria-label="语言切换 / Language">
+          <button type="button" data-lang="zh" class="is-on">中文</button>
+          <span class="sep"></span>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="index.html"><span data-i18n="top.viewsite">查看网站</span><span class="arr arr-up"></span></a>
+      </div>
+    </header>
+
+    <main class="page" id="pageRoot"></main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+  (function () {
+    var A = window.StudioApp, S = window.StudioStore;
+    var root = A.qs('#pageRoot');
+    var params = new URLSearchParams(location.search);
+    var did = params.get('id');
+    var from = params.get('from');
+    var cid = params.get('cid');
+    var pid = params.get('pid');
+
+    /* 流程三 / 流程四：打开设计后可以返回合集 / 项目 */
+    function backLink() {
+      if (from === 'collection' && cid && S.collection(cid)) {
+        var c = S.collection(cid);
+        return { href: 'collection.html?id=' + c.id, label: S.name(c, A.lang()) };
+      }
+      if (from === 'project' && pid && S.project(pid)) {
+        var p = S.project(pid);
+        return { href: 'project.html?id=' + p.id, label: S.name(p, A.lang()) };
+      }
+      return { href: 'library.html', label: A.t('p.library.title') };
+    }
+
+    function render() {
+      var d = S.design(did);
+      if (!d) {
+        root.innerHTML = '<div class="empty-state"><div class="es-mark"></div>' +
+          '<h2 class="es-title">' + A.esc(A.t('dd.missing')) + '</h2>' +
+          '<p class="es-hint">' + A.esc(A.t('dd.missingHint')) + '</p>' +
+          '<div class="es-btn"><a class="btn" href="library.html"><span>' + A.esc(A.t('act.backToLibrary')) + '</span><span class="arr"></span></a></div></div>';
+        return;
+      }
+      var name = S.name(d, A.lang());
+      document.title = name + ' — Studio';
+      var crumb = A.qs('#crumbName');
+      if (crumb) crumb.textContent = name;
+
+      var back = backLink();
+      var colls = S.collectionsOfDesign(d.id);
+      var proj = d.projectId ? S.project(d.projectId) : null;
+      var liveVersions = S.versionsOf(d.id);
+      var curV = S.currentVersion(d.id);
+      var tgs = S.tagsOfDesign(d.id);
+      var w = S.website();
+      var wsec = w ? S.siteSection('featured_works') : null;
+      var onSite = !!(wsec && wsec.designIds.indexOf(d.id) !== -1);
+      var br = S.brand();
+      var inBrand = !!(br && br.featuredDesignIds.indexOf(d.id) !== -1);
+
+      root.innerHTML =
+        '<a class="detail-back" href="' + back.href + '"><span class="arr"></span><span>' + A.esc(back.label) + '</span></a>' +
+        '<div class="dd-layout">' +
+          '<div class="dd-fig"><img src="' + A.img(d.cover) + '" alt="' + A.esc(name) + '"></div>' +
+          '<div class="dd-side">' +
+            '<h1 class="detail-title">' + A.esc(name) + '</h1>' +
+            '<p class="dd-type">' + A.esc(S.typeLabel(d.type, A.lang())) + ' · ' + d.year +
+              (d.archived ? ' · <span class="dd-flag">' + A.esc(A.t('f.archived')) + '</span>' : '') + '</p>' +
+
+            /* the one thing a designer opens this page to know: where does
+               this asset stand, and what is it attached to */
+            '<div class="dd-status">' +
+              '<span class="dd-status-i"><i>' + A.esc(A.t('dd.sVersion')) + '</i><b>' +
+                (curV ? 'V' + curV.versionNumber + ' / ' + liveVersions.length : A.esc(A.t('vr.emptyShort'))) + '</b></span>' +
+              '<span class="dd-status-i"><i>' + A.esc(A.t('meta.collections')) + '</i><b>' + colls.length + '</b></span>' +
+              '<span class="dd-status-i"><i>' + A.esc(A.t('meta.project')) + '</i><b>' +
+                (proj ? A.esc(S.name(proj, A.lang())) : '—') + '</b></span>' +
+              '<span class="dd-status-i"><i>' + A.esc(A.t('dd.tags')) + '</i><b>' + tgs.length + '</b></span>' +
+              '<span class="dd-status-i"><i>' + A.esc(A.t('dd.sSite')) + '</i><b>' +
+                (onSite ? A.esc(A.t('dd.onSiteShort')) : '—') + '</b></span>' +
+            '</div>' +
+
+            '<div class="detail-actions">' +
+              '<button class="btn btn-sm" id="btnEdit" type="button"><span>' + A.esc(A.t('dd.edit')) + '</span><span class="arr"></span></button>' +
+              '<button class="btn btn-ghost btn-sm" id="btnColl" type="button"><span>' + A.esc(A.t('dd.addToCollection')) + '</span><span class="arr"></span></button>' +
+              '<button class="btn btn-ghost btn-sm" id="btnProj" type="button"><span>' + A.esc(proj ? A.t('dd.changeProject') : A.t('dd.addToProject')) + '</span></button>' +
+              '<button class="btn btn-ghost btn-sm" id="btnFav" type="button"><span>' + A.esc(d.favorite ? A.t('t.unfavorited') : A.t('t.favorited')) + '</span></button>' +
+              '<button class="btn btn-ghost btn-sm" id="btnArch" type="button"><span>' + A.esc(d.archived ? A.t('t.unarchived') : A.t('f.archived')) + '</span></button>' +
+            '</div>' +
+
+            '<div class="info-block">' +
+              '<p class="info-label">' + A.esc(A.t('meta.collections')) + '</p>' +
+              (colls.length
+                ? '<div class="chipset">' + colls.map(function (c) {
+                    return '<a class="chip-link" href="collection.html?id=' + c.id + '&from=design">' +
+                      '<span class="dot"></span>' + A.esc(S.name(c, A.lang())) + '</a>';
+                  }).join('') + '</div>'
+                : '<p class="text-muted-note">' + A.esc(A.t('dd.noCollections')) + '</p>') +
+            '</div>' +
+
+            '<div class="info-block">' +
+              '<p class="info-label">' + A.esc(A.t('meta.project')) + '</p>' +
+              (proj
+                ? '<a class="link-row" href="project.html?id=' + proj.id + '&from=design">' +
+                    '<span><span class="lr-name">' + A.esc(S.name(proj, A.lang())) + '</span>' +
+                    '<span class="lr-sub">' + A.esc(S.projStatusLabel(proj.status, A.lang())) + '</span></span>' +
+                    '<span class="arr"></span></a>'
+                : '<p class="text-muted-note">' + A.esc(A.t('dd.noProject')) + '</p>') +
+            '</div>' +
+
+            '<div class="info-block">' +
+              '<p class="info-label">' + A.esc(A.t('dd.details')) + '</p>' +
+              '<dl class="meta-rows">' +
+                (d.metal ? '<div class="meta-row"><dt>' + A.esc(A.t('dd.metal')) + '</dt><dd>' +
+                  A.esc(S.metalLabel(d.metal, A.lang())) + '</dd></div>' : '') +
+                (d.stone ? '<div class="meta-row"><dt>' + A.esc(A.t('dd.stone')) + '</dt><dd>' +
+                  A.esc(S.stoneLabel(d.stone, A.lang())) + '</dd></div>' : '') +
+                (d.status ? '<div class="meta-row"><dt>' + A.esc(A.t('dd.designStatus')) + '</dt><dd>' +
+                  '<span class="pill pill--sm pill--' + (d.status === 'final' ? 'done' : d.status === 'concept' ? 'draft' : 'planning') + '">' +
+                  A.esc(S.dstatLabel(d.status, A.lang())) + '</span></dd></div>' : '') +
+                (d.style ? '<div class="meta-row"><dt>' + A.esc(A.t('dim.style')) + '</dt><dd>' +
+                  A.esc(S.styleLabel(d.style, A.lang())) + '</dd></div>' : '') +
+                (d.theme ? '<div class="meta-row"><dt>' + A.esc(A.t('dim.theme')) + '</dt><dd>' +
+                  A.esc(S.themeLabel(d.theme, A.lang())) + '</dd></div>' : '') +
+                '<div class="meta-row"><dt>' + A.esc(A.t('meta.created')) + '</dt><dd>' + A.date(d.createdAt) + '</dd></div>' +
+                '<div class="meta-row"><dt>' + A.esc(A.t('meta.updated')) + '</dt><dd>' + A.rel(d.updatedAt) + '</dd></div>' +
+              '</dl>' +
+            '</div>' +
+
+            '<div class="info-block">' +
+              '<p class="info-label">' + A.esc(A.t('dd.tags')) + '</p>' +
+              (function () {
+                var tgs = S.tagsOfDesign(d.id);
+                return tgs.length
+                  ? '<div class="chipset" style="margin-top:12px">' + tgs.map(function (tg) {
+                      return '<a class="tagchip" href="tags.html?tag=' + tg.id + '">' + A.esc(S.tagLabel(tg, A.lang())) + '</a>';
+                    }).join('') + '</div>'
+                  : '<p class="text-muted-note">' + A.esc(A.t('dd.noTags')) + '</p>';
+              })() +
+            '</div>' +
+
+            (function () {
+              var files = S.filesOfDesign(d.id).concat(S.versionFilesOfDesign(d.id)).filter(function (f, i, arr) {
+                return arr.indexOf(f) === i;
+              });
+              var w2 = S.website();
+              var featured = false;
+              if (w2) {
+                var sec = S.siteSection('featured_works');
+                featured = !!(sec && sec.designIds.indexOf(d.id) !== -1);
+              }
+              var brand = S.brand();
+              var inBrandNow = !!(brand && brand.featuredDesignIds.indexOf(d.id) !== -1);
+              if (!files.length && !featured && !inBrandNow) return '';
+              var html = '<div class="info-block">' +
+                '<p class="info-label">' + A.esc(A.t('dd.links')) + '</p>';
+              if (files.length) {
+                html += '<p class="dd-link-label">' + A.esc(A.t('dd.linkedFiles')) + ' · ' + files.length + '</p><div class="chipset">' +
+                  files.slice(0, 8).map(function (f) {
+                    return '<a class="chip-link" href="files.html?view=browse&file=' + f.id + '">' +
+                      A.esc(f.name) + '</a>';
+                  }).join('') +
+                  (files.length > 8 ? '<span class="text-muted-note">+' + (files.length - 8) + '</span>' : '') + '</div>';
+              }
+              if (featured) {
+                html += '<p class="dd-link-label">' + A.esc(A.t('dd.onSite')) + '</p>' +
+                  '<a class="link-row" href="website.html"><span><span class="lr-name">' +
+                  A.esc(A.t('dd.featuredOnSite')) + '</span><span class="lr-sub">' +
+                  A.esc(A.t('dd.featuredOnSiteSub')) + '</span></span><span class="arr"></span></a>';
+              }
+              if (inBrandNow) {
+                html += '<p class="dd-link-label">' + A.esc(A.t('dd.onBrand')) + '</p>' +
+                  '<a class="link-row" href="brand.html"><span><span class="lr-name">' +
+                  A.esc(A.t('dd.featuredOnBrand')) + '</span><span class="lr-sub">' +
+                  A.esc(brand.name || '') + '</span></span><span class="arr"></span></a>';
+              }
+              return html + '</div>';
+            })() +
+
+            (d.description
+              ? '<div class="info-block">' +
+                  '<p class="info-label">' + A.esc(A.t('dd.designDesc')) + '</p>' +
+                  '<p class="detail-desc" style="margin-top:12px">' + A.esc(d.description) + '</p>' +
+                '</div>'
+              : '') +
+
+            versionsHTML(d) +
+
+            '<div class="detail-danger" id="ddDanger">' +
+              '<div><p class="dd-danger-t">' + A.esc(A.t('del.designTitle')) + '</p>' +
+              '<p class="dd-danger-h">' + A.esc(A.t('del.designHint')) + '</p></div>' +
+              '<button class="link-btn is-danger" type="button" id="btnDelDesign">' +
+                A.esc(A.t('del.continue')) + '</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+      A.qs('#btnEdit').addEventListener('click', function () { openEdit(d); });
+      bindVersions(d);
+      var delBtn = A.qs('#btnDelDesign');
+      if (delBtn) delBtn.addEventListener('click', function () { openDeleteDesign(d); });
+      A.qs('#btnColl').addEventListener('click', function () { A.pickCollections([d.id], render); });
+      A.qs('#btnProj').addEventListener('click', function () { A.pickProject(d.id, render); });
+      A.qs('#btnFav').addEventListener('click', function () {
+        var on = S.toggleFavorite(d.id);
+        A.toast(on ? A.t('t.favorited') : A.t('t.unfavorited'));
+        render();
+      });
+      A.qs('#btnArch').addEventListener('click', function () {
+        var on = S.toggleArchive(d.id);
+        A.toast(on ? A.t('t.archived') : A.t('t.unarchived'));
+        render();
+      });
+    }
+
+    /* ---------------- edit dialog ---------------- */
+    function openEdit(d) {
+      var draft = {
+        name: d.name,
+        description: d.description || '',
+        tagIds: (d.tagIds || []).slice(),
+        type: d.type, style: d.style || '', metal: d.metal || '',
+        stone: d.stone || '', status: d.status || '', theme: d.theme || '',
+        cover: d.cover || null, year: d.year
+      };
+      var dims = ['type', 'style', 'metal', 'stone', 'status', 'theme'];
+      var body = document.createElement('div');
+      body.innerHTML =
+        '<div class="de-section">' +
+          '<div class="de-field"><label class="de-label">' + A.esc(A.t('df.cover')) + '</label>' +
+            '<div class="de-cover">' +
+              '<div class="de-cover-fig" id="deCoverFig"></div>' +
+              '<div class="de-cover-acts">' +
+                '<button class="btn btn-ghost btn-sm" type="button" id="dePickCover"><span>' + A.esc(A.t('df.pickCover')) + '</span></button>' +
+                '<button class="link-btn is-danger" type="button" id="deDropCover">' + A.esc(A.t('df.removeCover')) + '</button>' +
+                '<p class="de-note">' + A.esc(A.t('df.coverHint')) + '</p>' +
+              '</div>' +
+              '<input type="file" accept="image/*" hidden>' +
+            '</div></div>' +
+          '<div class="de-field"><label class="de-label">' + A.esc(A.t('de.name')) + '</label>' +
+            '<input class="input" id="deName" type="text" maxlength="60" value="' + A.esc(draft.name) + '"></div>' +
+          '<div class="de-field"><label class="de-label">' + A.esc(A.t('de.desc')) + '</label>' +
+            '<textarea class="textarea" id="deDesc" rows="3" placeholder="' + A.esc(A.t('de.descPh')) + '">' +
+              A.esc(draft.description) + '</textarea></div>' +
+        '</div>' +
+        '<div class="de-section">' +
+          '<label class="de-label">' + A.esc(A.t('de.tags')) + '</label>' +
+          '<div class="de-tagbox" id="deTagBox">' +
+            '<input id="deTagInput" type="text" placeholder="' + A.esc(A.t('de.tagsPh')) + '" maxlength="30">' +
+          '</div>' +
+          '<div class="de-suggest" id="deSuggest"></div>' +
+          '<p class="de-note">' + A.esc(A.t('tg.newHint')) + '</p>' +
+        '</div>' +
+        '<div class="de-section">' +
+          '<label class="de-label">' + A.esc(A.t('de.classify')) + '</label>' +
+          '<div class="de-class" id="deClass">' +
+            dims.map(function (dim) {
+              return '<div class="de-class-row" data-dim="' + dim + '"><span>' + A.esc(A.t('dim.' + dim)) + '</span>' +
+                '<div class="de-opts">' + S.taxOptions(dim).map(function (o) {
+                  return '<button class="de-opt" type="button" data-dim="' + dim + '" data-val="' + o.key + '">' +
+                    A.esc(A.lang() === 'en' ? (o.en || o.zh) : o.zh) + '</button>';
+                }).join('') + '</div></div>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+
+      var tagBox = A.qs('#deTagBox', body);
+      var tagInput = A.qs('#deTagInput', body);
+
+      /* cover — a design without one is legitimate, so removal is allowed */
+      var coverFig = A.qs('#deCoverFig', body);
+      var coverInput = A.qs('input[type="file"]', body);
+      function paintCover() {
+        coverFig.innerHTML = draft.cover
+          ? '<img src="' + A.img(draft.cover) + '" alt="">'
+          : '<span class="df-cover-empty">' + A.esc(A.t('df.noCover')) + '</span>';
+        A.qs('#deDropCover', body).hidden = !draft.cover;
+      }
+      A.qs('#dePickCover', body).addEventListener('click', function () { coverInput.click(); });
+      coverFig.addEventListener('click', function () { coverInput.click(); });
+      coverInput.addEventListener('change', function () {
+        var f = coverInput.files && coverInput.files[0];
+        if (!f) return;
+        if (!A.isImageFile(f)) { A.toast(A.t('t.uploadFailed'), { error: true }); return; }
+        A.readImage(f, 1400, function (url) {
+          if (!url) { A.toast(A.t('t.uploadFailed'), { error: true }); return; }
+          draft.cover = url; paintCover();
+        });
+        coverInput.value = '';
+      });
+      A.qs('#deDropCover', body).addEventListener('click', function () {
+        draft.cover = null; paintCover();
+      });
+      paintCover();
+
+      function paintTags() {
+        A.qsa('.tagchip', tagBox).forEach(function (x) { x.remove(); });
+        draft.tagIds.forEach(function (id) {
+          var tg = S.tag(id);
+          if (!tg) return;
+          var chip = document.createElement('span');
+          chip.className = 'tagchip';
+          chip.innerHTML = A.esc(tg.name) + '<button class="tc-x" type="button" data-drop="' + id + '">×</button>';
+          tagBox.insertBefore(chip, tagInput);
+        });
+        paintSuggest();
+      }
+
+      function paintSuggest() {
+        var q = tagInput.value.trim().toLowerCase();
+        var pool = S.tags().filter(function (tg) {
+          if (draft.tagIds.indexOf(tg.id) !== -1) return false;
+          return !q || tg.name.toLowerCase().indexOf(q) !== -1 || (tg.nameEn || '').toLowerCase().indexOf(q) !== -1;
+        });
+        var box = A.qs('#deSuggest', body);
+        /* when typing something new, offer a create action first */
+        var exact = q && S.tagByName(tagInput.value.trim());
+        var items = pool.slice(0, 8).map(function (tg) {
+          return '<button type="button" data-pick="' + tg.id + '">' + A.esc(tg.name) + '</button>';
+        });
+        if (q && !exact) {
+          items.unshift('<button type="button" data-new="1">＋ ' + A.esc(A.t('pt.newBtn')) + '：' + A.esc(tagInput.value.trim()) + '</button>');
+        }
+        box.innerHTML = items.join('');
+      }
+
+      function addTag(id) {
+        if (draft.tagIds.indexOf(id) === -1) draft.tagIds.push(id);
+        tagInput.value = '';
+        paintTags();
+        tagInput.focus();
+      }
+
+      function paintClass() {
+        A.qsa('.de-opt', body).forEach(function (b) {
+          var dim = b.getAttribute('data-dim');
+          b.classList.toggle('is-on', draft[dim] === b.getAttribute('data-val'));
+        });
+      }
+
+      body.addEventListener('click', function (e) {
+        var drop = e.target.closest('[data-drop]');
+        if (drop) {
+          draft.tagIds = draft.tagIds.filter(function (x) { return x !== drop.getAttribute('data-drop'); });
+          paintTags();
+          return;
+        }
+        var pick = e.target.closest('[data-pick]');
+        if (pick) { addTag(pick.getAttribute('data-pick')); return; }
+        if (e.target.closest('[data-new]')) {
+          var res = S.createTag(tagInput.value.trim());
+          if (res.ok) addTag(res.tag.id);
+          return;
+        }
+        var opt = e.target.closest('.de-opt');
+        if (opt) {
+          var dim = opt.getAttribute('data-dim');
+          var val = opt.getAttribute('data-val');
+          /* type is structural — always keep one; the rest can be cleared */
+          if (draft[dim] === val && dim !== 'type') draft[dim] = '';
+          else draft[dim] = val;
+          paintClass();
+        }
+      });
+
+      tagInput.addEventListener('input', paintSuggest);
+      tagInput.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        var v = tagInput.value.trim();
+        if (!v) return;
+        var exact = S.tagByName(v);
+        if (exact) { addTag(exact.id); return; }
+        var res = S.createTag(v);
+        if (res.ok) addTag(res.tag.id);
+      });
+
+      paintTags();
+      paintClass();
+
+      var saved = false;
+      function snapshot() {
+        return {
+          name: A.qs('#deName', body).value,
+          desc: A.qs('#deDesc', body).value,
+          type: draft.type, style: draft.style, metal: draft.metal, stone: draft.stone,
+          status: draft.status, theme: draft.theme,
+          tags: draft.tagIds.slice().sort(), cover: draft.cover ? '1' : ''
+        };
+      }
+      var initial = JSON.stringify(snapshot());
+
+      A.modal({
+        title: A.t('de.title'), body: body, size: 'lg', focus: false,
+        dirty: function () { return !saved && JSON.stringify(snapshot()) !== initial; },
+        footer: [
+          { label: A.t('act.cancel'), onClick: function (c) { c(); } },
+          { label: A.t('de.save'), primary: true, onClick: function (c) {
+            var name = A.qs('#deName', body).value.trim();
+            if (!name) { A.toast(A.t('de.nameRequired')); return; }
+            var patch = {
+              name: name,
+              description: A.qs('#deDesc', body).value.trim(),
+              type: draft.type, style: draft.style || null, metal: draft.metal || null,
+              stone: draft.stone || null, status: draft.status || null, theme: draft.theme || null,
+              cover: draft.cover, images: draft.cover ? [draft.cover] : []
+            };
+            S.updateDesign(d.id, patch);
+            S.setDesignTags(d.id, draft.tagIds);
+            saved = true;
+            c();
+            A.toast(A.t('de.saved'));
+            render();
+          } }
+        ]
+      });
+    }
+
+    /* ---------------- delete (with reference check) ---------------- */
+    function openDeleteDesign(d) {
+      var u = S.designUsage(d.id) || {};
+      var rows = [];
+      if (u.collections && u.collections.length) {
+        rows.push([A.t('del.usageCollections'), u.collections.join('、')]);
+      }
+      if (u.project) rows.push([A.t('del.usageProject'), u.project]);
+      if (u.brandFeatured) rows.push([A.t('del.usageBrand'), A.t('del.usageBrand')]);
+      if (u.siteFeatured) rows.push([A.t('del.usageSite'), A.t('del.usageSite')]);
+      if (u.siteHero) rows.push([A.t('del.usageHero'), A.t('del.usageHero')]);
+      if (u.versions) rows.push([A.t('del.usageVersions'), A.t('tr.versions', { n: u.versions })]);
+      if (u.files && u.files.length) rows.push([A.t('del.usageFiles'), A.t('vr.filesN', { n: u.files.length })]);
+
+      var body = document.createElement('div');
+      body.className = 'del-dialog';
+      body.innerHTML =
+        '<p class="del-hint">' + A.esc(A.t('del.designHint')) + '</p>' +
+        (rows.length
+          ? '<p class="del-lead">' + A.esc(A.t('del.usageTitle')) + '</p>' +
+            '<dl class="del-usage">' + rows.map(function (r) {
+              return '<div><dt>' + A.esc(r[0]) + '</dt><dd>' + A.esc(r[1]) + '</dd></div>';
+            }).join('') + '</dl>' +
+            '<p class="del-note">' + A.esc(A.t('del.affected')) + '</p>'
+          : '');
+
+      A.modal({
+        title: A.t('del.designTitle'), body: body, size: 'sm', focus: false,
+        footer: [
+          { label: A.t('act.cancel'), onClick: function (c) { c(); } },
+          { label: A.t('del.continue'), danger: true, primary: true, onClick: function (c) {
+            var r = S.deleteDesign(d.id);
+            if (!r.ok) { A.toast(A.t('err.deleteFailed')); return; }
+            c();
+            A.toast(A.t('del.done'));
+            A.go('library.html');
+          } }
+        ]
+      });
+    }
+
+    /* ================= versions ================= */
+    var VSTAT = {
+      draft:  { label: 'vs.draft',  cls: 'pill--draft' },
+      review: { label: 'vs.review', cls: 'pill--planning' },
+      final:  { label: 'vs.final',  cls: 'pill--done' }
+    };
+
+    function versionsHTML(d) {
+      var vs = S.versionsOf(d.id);
+      var cur = S.currentVersion(d.id);
+      var hist = vs.filter(function (v) { return !cur || v.id !== cur.id; }).slice().reverse();
+      var events = S.eventsOfDesign(d.id, 8);
+
+      function statusPill(v) {
+        var st = VSTAT[v.status] || VSTAT.draft;
+        return '<span class="pill pill--sm ' + st.cls + '">' + A.esc(A.t(st.label)) + '</span>';
+      }
+      function fileMeta(v) {
+        var n = (v.fileIds || []).length;
+        return n ? A.t('vr.filesN', { n: n }) : A.t('vr.noFiles');
+      }
+      function actions(v, isCur) {
+        return '<div class="ver-acts">' +
+          (isCur ? '' : '<button class="link-btn" type="button" data-vact="current" data-id="' + v.id + '">' + A.esc(A.t('vr.setCurrent')) + '</button>') +
+          (isCur ? '' : '<button class="link-btn" type="button" data-vact="compare" data-id="' + v.id + '">' + A.esc(A.t('vr.compare')) + '</button>') +
+          '<button class="link-btn" type="button" data-vact="edit" data-id="' + v.id + '">' + A.esc(A.t('vr.edit')) + '</button>' +
+          (isCur ? '' : '<button class="link-btn is-danger" type="button" data-vact="del" data-id="' + v.id + '">' + A.esc(A.t('vr.delete')) + '</button>') +
+        '</div>';
+      }
+
+      var html = '<div class="info-block ver-block" id="verBlock">' +
+        '<div class="ver-head">' +
+          '<div><p class="info-label">' + A.esc(A.t('dd.versions')) + '</p>' +
+          '<p class="ver-sum">' + (cur
+            ? A.esc(A.t('vr.summary', { v: 'V' + cur.versionNumber, n: vs.length }))
+            : A.esc(A.t('vr.empty'))) + '</p></div>' +
+          '<div class="ver-head-acts">' +
+            (vs.length > 1 ? '<button class="link-btn" type="button" data-vact="compareAll">' + A.esc(A.t('vr.compareAll')) + '</button>' : '') +
+            '<button class="btn btn-ghost btn-sm" type="button" data-vact="add"><span>' + A.esc(A.t('vr.add')) + '</span></button>' +
+          '</div>' +
+        '</div>';
+
+      if (!vs.length) {
+        return html + '<div class="ver-empty">' +
+          '<p class="fe-title">' + A.esc(A.t('vr.emptyTitle')) + '</p>' +
+          '<p class="fe-hint">' + A.esc(A.t('vr.emptyHint')) + '</p>' +
+          '<button class="btn btn-sm fe-btn" type="button" data-vact="add"><span>' + A.esc(A.t('vr.add')) + '</span><span class="arr"></span></button>' +
+          '</div></div>';
+      }
+
+      if (cur) {
+        var cover = S.versionCover(cur);
+        html += '<div class="ver-current" data-vact="open" data-id="' + cur.id + '">' +
+          '<div class="ver-cur-fig">' + (cover
+            ? '<img src="' + cover + '" alt="">'
+            : '<span class="ver-noimg">' + A.esc(A.t('vr.noCover')) + '</span>') + '</div>' +
+          '<div class="ver-cur-body">' +
+            '<p class="ver-cur-kicker">' + A.esc(A.t('vr.current')) + '</p>' +
+            '<p class="ver-cur-name"><span class="ver-no">V' + cur.versionNumber + '</span> ' + A.esc(cur.name) + '</p>' +
+            '<p class="ver-cur-meta">' + statusPill(cur) + '<span>' + A.date(cur.createdAt) + '</span>' +
+              '<span>' + A.esc(fileMeta(cur)) + '</span></p>' +
+            (cur.notes ? '<p class="ver-cur-notes">' + A.esc(cur.notes) + '</p>' : '') +
+            actions(cur, true) +
+          '</div>' +
+        '</div>';
+      }
+
+      if (hist.length) {
+        html += '<div class="ver-tl">' + hist.map(function (v) {
+          return '<div class="ver-item" data-vact="open" data-id="' + v.id + '">' +
+            '<span class="ver-dot"></span>' +
+            '<div class="ver-item-body">' +
+              '<div class="ver-item-top">' +
+                '<span class="ver-no">V' + v.versionNumber + '</span>' +
+                '<span class="ver-name">' + A.esc(v.name) + '</span>' +
+                statusPill(v) +
+                '<span class="ver-date">' + A.date(v.createdAt) + '</span>' +
+              '</div>' +
+              (v.notes ? '<p class="ver-notes">' + A.esc(v.notes) + '</p>' : '') +
+              '<p class="ver-filemeta">' + A.esc(fileMeta(v)) + '</p>' +
+              actions(v, false) +
+            '</div></div>';
+        }).join('') + '</div>';
+      }
+
+      /* deleted versions are recoverable — hiding them entirely would make a
+         misclick permanent, which is exactly what Phase 9 promised not to do */
+      var gone = S.deletedVersionsOf(d.id);
+      if (gone.length) {
+        html += '<div class="ver-gone">' +
+          '<p class="ver-gone-head">' + A.esc(A.t('vr.deletedN', { n: gone.length })) + '</p>' +
+          gone.map(function (v) {
+            return '<div class="ver-gone-row">' +
+              '<span class="ver-no">V' + v.versionNumber + '</span>' +
+              '<span class="ver-name">' + A.esc(v.name) + '</span>' +
+              '<span class="ver-date">' + A.date(v.deletedAt) + '</span>' +
+              '<button class="link-btn" type="button" data-vact="restore" data-id="' + v.id + '">' +
+                A.esc(A.t('vr.restore')) + '</button></div>';
+          }).join('') + '</div>';
+      }
+
+      html += '</div>';
+
+      /* change log — separate from the version list on purpose */
+      html += '<div class="info-block" id="evBlock">' +
+        '<p class="info-label">' + A.esc(A.t('ev.title')) + '</p>' +
+        (events.length
+          ? '<div class="ev-list">' + events.map(function (e) {
+              return '<div class="ev-row"><span class="ev-dot"></span>' +
+                '<span class="ev-text">' + A.esc(eventText(e)) + '</span>' +
+                '<span class="ev-time">' + A.rel(e.createdAt) + '</span></div>';
+            }).join('') + '</div>'
+          : '<p class="text-muted-note">' + A.esc(A.t('ev.none')) + '</p>') +
+      '</div>';
+      return html;
+    }
+
+    function eventText(e) {
+      var vars = { n: e.versionNumber, name: e.versionName || '', detail: e.detail || '' };
+      if (e.eventType === 'renamed') vars.detail = A.t('ev.from', { old: e.detail });
+      if (e.eventType === 'status') vars.detail = A.t('vs.' + (e.detail || 'draft'));
+      return A.t('ev.' + e.eventType, vars);
+    }
+
+    function bindVersions(d) {
+      var block = A.qs('#verBlock');
+      if (!block) return;
+      block.addEventListener('click', function (e) {
+        var el = e.target.closest('[data-vact]');
+        if (!el) return;
+        var act = el.getAttribute('data-vact');
+        var id = el.getAttribute('data-id');
+        var v = id ? (act === 'restore' ? S.rawVersion(id) : S.version(id)) : null;
+        if (act === 'add') { e.stopPropagation(); openAddVersion(d); return; }
+        if (act === 'compareAll') { e.stopPropagation(); openCompare(d, null); return; }
+        if (act === 'compare') { e.stopPropagation(); openCompare(d, v); return; }
+        if (act === 'restore') { e.stopPropagation(); restoreVersion(v); return; }
+        if (!v) return;
+        if (act === 'open') openVersion(v);
+        else if (act === 'edit') { e.stopPropagation(); editVersion(v); }
+        else if (act === 'current') { e.stopPropagation(); makeCurrent(v); }
+        else if (act === 'del') { e.stopPropagation(); removeVersion(v); }
+      });
+    }
+
+    function makeCurrent(v) {
+      A.confirm({
+        title: A.t('vr.restoreTitle', { v: 'V' + v.versionNumber }),
+        hint: A.t('vr.restoreHint'),
+        confirmLabel: A.t('vr.setCurrent'),
+        onConfirm: function () {
+          var res = S.setCurrentVersion(v.id);
+          if (!res.ok) { A.toast(A.t('vr.errMissing')); return; }
+          A.toast(res.restored ? A.t('vr.doneRestore', { v: 'V' + v.versionNumber })
+                               : A.t('vr.doneCurrent', { v: 'V' + v.versionNumber }));
+          render();
+        }
+      });
+    }
+
+    function restoreVersion(v) {
+      if (!v) return;
+      A.confirm({
+        title: A.t('vr.restoreTitle', { v: 'V' + v.versionNumber }),
+        hint: A.t('vr.restoreVersionHint'),
+        confirmLabel: A.t('vr.restore'),
+        onConfirm: function () {
+          var res = S.restoreVersion(v.id);
+          if (!res.ok) { A.toast(A.t('vr.errMissing')); return; }
+          A.toast(A.t('vr.restored'));
+          render();
+        }
+      });
+    }
+
+    function removeVersion(v) {
+      A.confirm({
+        title: A.t('vr.deleteTitle', { v: 'V' + v.versionNumber }),
+        hint: A.t('vr.deleteHint', { name: v.name }),
+        confirmLabel: A.t('vr.delete'), danger: true,
+        onConfirm: function () {
+          var res = S.deleteVersion(v.id);
+          if (!res.ok) {
+            A.toast(res.reason === 'current' ? A.t('vr.errCurrent') : A.t('vr.errMissing'));
+            return;
+          }
+          A.toast(A.t('vr.deleted'));
+          render();
+        }
+      });
+    }
+
+    function openVersion(v) {
+      var d = S.design(v.designAssetId);
+      var files = S.versionFiles(v.id);
+      var isCur = d && d.currentVersionId === v.id;
+      var body = document.createElement('div');
+      body.className = 'vr-detail';
+      body.innerHTML =
+        '<div class="vr-detail-top">' +
+          '<span class="ver-no">V' + v.versionNumber + '</span>' +
+          '<h3 class="vr-detail-name">' + A.esc(v.name) + '</h3>' +
+          '<span class="pill pill--sm ' + (VSTAT[v.status] || VSTAT.draft).cls + '">' +
+            A.esc(A.t((VSTAT[v.status] || VSTAT.draft).label)) + '</span>' +
+        '</div>' +
+        '<p class="vr-detail-meta">' + A.date(v.createdAt) + ' · ' + A.esc(A.t('vr.filesN', { n: files.length })) +
+          (isCur ? ' · ' + A.esc(A.t('vr.current')) : '') + '</p>' +
+        (v.notes ? '<p class="vr-detail-notes">' + A.esc(v.notes) + '</p>' : '<p class="vr-detail-notes is-empty">' + A.esc(A.t('vr.noNotes')) + '</p>') +
+        (files.length
+          ? '<div class="vr-files">' + files.map(function (f) {
+              var thumb = (f.kind === 'image' && f.dataUrl)
+                ? '<img src="' + f.dataUrl + '" alt="">'
+                : '<span class="cl-ext">' + A.esc((f.name.split('.').pop() || '').toUpperCase()) + '</span>';
+              return '<a class="vr-file" href="files.html?view=browse&file=' + f.id + '">' +
+                '<span class="vr-file-fig">' + thumb + '</span>' +
+                '<span class="vr-file-name">' + A.esc(f.name) + '</span>' +
+                '<span class="vr-file-sub">' + A.esc(S.kindLabel(f.kind, A.lang())) + ' · ' + A.esc(A.prettySize(f.size)) +
+                  (f.hasContent ? '' : ' · ' + A.esc(A.t('cl.file.flagMeta'))) + '</span></a>';
+            }).join('') + '</div>'
+          : '<p class="text-muted-note">' + A.esc(A.t('vr.noFilesHint')) + '</p>') +
+        '<p class="de-note">' + A.esc(A.t('vr.fileStoreNote')) + '</p>';
+
+      var footer = [];
+      if (!isCur) {
+        footer.push({ label: A.t('vr.setCurrent'), primary: true, onClick: function (c) { c(); makeCurrent(v); } });
+      }
+      footer.push({ label: A.t('vr.edit'), onClick: function (c) { c(); editVersion(v); } });
+      if (!isCur) {
+        footer.push({ label: A.t('vr.delete'), danger: true, onClick: function (c) { c(); removeVersion(v); } });
+      }
+      A.modal({ title: A.t('vr.detailTitle'), body: body, size: 'sm', footer: footer });
+    }
+
+    function versionForm(d, v, onSave) {
+      var draft = {
+        name: v ? v.name : 'V' + (S.versionsOf(d.id).length + 1) + ' ' + A.t('vr.defaultName'),
+        notes: v ? v.notes : '',
+        status: v ? v.status : 'draft',
+        fileIds: v ? (v.fileIds || []).slice() : []
+      };
+      var body = document.createElement('div');
+      body.innerHTML =
+        '<div class="de-field"><label class="de-label">' + A.esc(A.t('vr.name')) + '</label>' +
+          '<input class="input" id="vrName" type="text" maxlength="60" value="' + A.esc(draft.name) + '"></div>' +
+        '<div class="de-field"><label class="de-label">' + A.esc(A.t('vr.notes')) + '</label>' +
+          '<textarea class="textarea" id="vrNotes" rows="3" placeholder="' + A.esc(A.t('vr.notesPh')) + '">' + A.esc(draft.notes) + '</textarea></div>' +
+        '<div class="de-field"><label class="de-label">' + A.esc(A.t('vr.status')) + '</label>' +
+          '<div class="de-opts" id="vrStatus">' + Object.keys(VSTAT).map(function (k) {
+            return '<button class="de-opt' + (draft.status === k ? ' is-on' : '') + '" type="button" data-st="' + k + '">' +
+              A.esc(A.t(VSTAT[k].label)) + '</button>';
+          }).join('') + '</div></div>' +
+        '<div class="de-field"><label class="de-label">' + A.esc(A.t('vr.files')) + '</label>' +
+          '<div class="vr-picked" id="vrPicked"></div>' +
+          '<div class="vr-file-acts">' +
+            '<button class="link-btn" type="button" id="vrPick">' + A.esc(A.t('vr.pickFiles')) + '</button>' +
+            '<button class="link-btn" type="button" id="vrUpload">' + A.esc(A.t('vr.upload')) + '</button>' +
+          '</div>' +
+          '<p class="de-note">' + A.esc(A.t('vr.fileStoreNote')) + '</p>' +
+        '</div>';
+
+      var pickedEl = A.qs('#vrPicked', body);
+      var saved = false, initial = '';
+      function snap() {
+        return JSON.stringify({
+          name: A.qs('#vrName', body).value,
+          notes: A.qs('#vrNotes', body).value,
+          status: draft.status,
+          files: draft.fileIds.slice()
+        });
+      }
+      function paintPicked() {
+        var fs = draft.fileIds.map(function (id) { return S.file(id); }).filter(Boolean);
+        pickedEl.innerHTML = fs.length
+          ? fs.map(function (f) {
+              return '<span class="vr-chip"><span>' + A.esc(f.name) + '</span>' +
+                '<button type="button" class="tc-x" data-drop="' + f.id + '">×</button></span>';
+            }).join('')
+          : '<span class="m-hint">' + A.esc(A.t('vr.noFilesPicked')) + '</span>';
+      }
+      paintPicked();
+
+      body.addEventListener('click', function (e) {
+        var st = e.target.closest('[data-st]');
+        if (st) {
+          draft.status = st.getAttribute('data-st');
+          A.qsa('#vrStatus .de-opt', body).forEach(function (b) {
+            b.classList.toggle('is-on', b.getAttribute('data-st') === draft.status);
+          });
+          return;
+        }
+        var drop = e.target.closest('[data-drop]');
+        if (drop) {
+          draft.fileIds = draft.fileIds.filter(function (x) { return x !== drop.getAttribute('data-drop'); });
+          paintPicked();
+        }
+      });
+
+      A.qs('#vrPick', body).addEventListener('click', function () {
+        A.pickFiles({
+          title: A.t('vr.pickFiles'), selectedIds: draft.fileIds,
+          onDone: function (ids) { draft.fileIds = ids; paintPicked(); }
+        });
+      });
+      A.qs('#vrUpload', body).addEventListener('click', function () {
+        uploadVersionFiles(function (ids, total, failed) {
+          ids.forEach(function (id) { if (draft.fileIds.indexOf(id) === -1) draft.fileIds.push(id); });
+          paintPicked();
+          if (failed) A.toast(A.t('vr.uploadPartial', { ok: ids.length, total: total }));
+          else if (ids.length) A.toast(A.t('vr.uploaded', { n: ids.length }));
+        });
+      });
+
+      A.modal({
+        title: v ? A.t('vr.editTitle') : A.t('vr.addTitle'),
+        body: body, size: 'sm', focus: false,
+        dirty: function () { return !saved && snap() !== initial; },
+        footer: [
+          { label: A.t('act.cancel'), onClick: function (c) { c(); } },
+          { label: A.t('act.save'), primary: true, onClick: function (c) {
+            var name = A.qs('#vrName', body).value.trim();
+            if (!name) { A.toast(A.t('vr.errName')); return; }
+            draft.name = name;
+            draft.notes = A.qs('#vrNotes', body).value.trim();
+            if (onSave(draft)) { saved = true; c(); }
+          } }
+        ]
+      });
+      initial = snap();
+    }
+
+    function openAddVersion(d) {
+      versionForm(d, null, function (draft) {
+        var res = S.addVersion(d.id, draft);
+        if (!res.ok) { A.toast(A.t('vr.errMissing')); return false; }
+        A.toast(A.t('vr.added', { v: 'V' + res.version.versionNumber }));
+        render();
+        return true;
+      });
+    }
+
+    function editVersion(v) {
+      var d = S.design(v.designAssetId);
+      versionForm(d, v, function (draft) {
+        var res = S.updateVersion(v.id, {
+          name: draft.name, notes: draft.notes, status: draft.status, fileIds: draft.fileIds
+        });
+        if (!res.ok) { A.toast(A.t('vr.errName')); return false; }
+        A.toast(A.t('vr.updated'));
+        render();
+        return true;
+      });
+    }
+
+    function openCompare(d, v) {
+      var url = 'design-compare.html?design=' + d.id;
+      if (v) url += '&b=' + v.id;
+      location.href = url;
+    }
+
+    /* real upload into the same local store the cloud space uses */
+    function uploadVersionFiles(cb) {
+      var inp = document.createElement('input');
+      inp.type = 'file';
+      inp.multiple = true;
+      inp.id = 'verUploadInput';
+      inp.style.position = 'fixed';
+      inp.style.left = '-9999px';
+      document.body.appendChild(inp);
+      inp.addEventListener('change', function () {
+        var files = Array.prototype.slice.call(inp.files || []);
+        if (!files.length) { inp.remove(); return; }
+        var pending = files.length, ids = [], failed = 0;
+        files.forEach(function (file) {
+          var done = function (dataUrl) {
+            var res = S.addFile({
+              name: file.name, kind: A.fileKind(file), size: file.size,
+              dataUrl: dataUrl, source: 'upload'
+            });
+            if (res && res.ok) ids.push(res.file.id);
+            else failed++;
+            if (--pending === 0) { inp.remove(); cb(ids, files.length, failed); }
+          };
+          if (A.isImageFile(file)) A.readImage(file, 1800, done);
+          else if (file.size <= 400 * 1024) {
+            var fr = new FileReader();
+            fr.onload = function () { done(fr.result); };
+            fr.onerror = function () { done(null); };
+            fr.readAsDataURL(file);
+          } else done(null);   /* metadata only, same rule as the cloud space */
+        });
+      });
+      inp.click();
+    }
+
+    A.page(render);
+  })();
+  </script>
+</body>
+</html>

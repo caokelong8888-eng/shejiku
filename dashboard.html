@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="dash.title">我的空间 — Studio</title>
+  <meta name="description" content="我的空间 · 资产总览 — Studio">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' fill='none' stroke='%231D1B18' stroke-width='2.5'/><rect x='10' y='10' width='12' height='12' fill='%231D1B18'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="dash" data-page="dashboard">
+
+  <aside class="dash-side" id="dashSide"></aside>
+  <div class="side-scrim" id="sideScrim"></div>
+
+  <div class="dash-main">
+
+    <header class="dash-top">
+      <div class="crumb">
+        <button class="menu-btn" id="menuBtn" type="button" aria-label="打开菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <span class="here" data-i18n="top.here">我的空间</span>
+        <span class="sep">/</span>
+        <span data-i18n="top.sub">资产总览</span>
+      </div>
+      <div class="top-actions">
+        <div class="lang-switch" role="group" aria-label="语言切换 / Language">
+          <button type="button" data-lang="zh" class="is-on">中文</button>
+          <span class="sep"></span>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="index.html"><span data-i18n="top.viewsite">查看网站</span><span class="arr arr-up"></span></a>
+        <button class="btn btn-sm" type="button" id="addAssetBtn"><span data-i18n="top.addasset">添加资产</span><span class="arr"></span></button>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="dash-hero" data-enter>
+      <div>
+        <h1 data-i18n="dash.h1">你的空间</h1>
+        <p class="lead" data-i18n="dash.lead">你创作的一切，安于一地。</p>
+        <p class="sub" data-i18n="dash.sub">你的设计不只是文件。建一座活的库——作品、项目与品牌资产，持续生长。</p>
+      </div>
+      <div class="dash-stat">
+        <p class="n" id="statDesigns">286</p>
+        <p class="cap label" data-i18n="dash.stat">设计资产</p>
+      </div>
+    </section>
+
+    <!-- Recent Assets -->
+    <section class="sec sec-assets" data-enter style="--rd:80ms">
+      <div class="sec-head">
+        <h2 data-i18n="sec.recent">最近资产</h2>
+        <a class="arrow-link" href="library.html"><span data-i18n="sec.viewlib">查看库</span><span class="arr"></span></a>
+      </div>
+      <div class="assets-grid" id="recentAssets"></div>
+    </section>
+
+    <!-- Recent Collections -->
+    <section class="sec sec-collections" data-enter style="--rd:160ms">
+      <div class="sec-head">
+        <h2 data-i18n="dash.recentColl">最近合集</h2>
+        <a class="arrow-link" href="collections.html"><span data-i18n="act.viewAll">查看全部</span><span class="arr"></span></a>
+      </div>
+      <div class="coll-list" id="recentColls"></div>
+    </section>
+
+    <!-- Recent Projects -->
+    <section class="sec sec-projects rows-project" data-enter style="--rd:220ms">
+      <div class="sec-head">
+        <h2 data-i18n="dash.recentProj">最近项目</h2>
+        <a class="arrow-link" href="projects.html"><span data-i18n="act.viewAll">查看全部</span><span class="arr"></span></a>
+      </div>
+      <div class="coll-list" id="recentProjs"></div>
+    </section>
+
+    <!-- Brand Space -->
+    <section class="sec sec-brand" data-enter style="--rd:280ms">
+      <div class="brand-card" id="dashBrand"></div>
+    </section>
+
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+  (function () {
+    var A = window.StudioApp, S = window.StudioStore;
+
+    function newDesign() {
+      A.openDesignModal({ onSaved: function (d) { A.go('design.html?id=' + d.id); } });
+    }
+    A.qs('#addAssetBtn').addEventListener('click', newDesign);
+
+    function emptyRow(textKey, btnKey, onBtn) {
+      return '<div class="dash-empty">' +
+        '<p>' + A.esc(A.t(textKey)) + '</p>' +
+        '<button class="link-btn" type="button" data-empty="1">' + A.esc(A.t(btnKey)) + '</button>' +
+        '</div>';
+    }
+
+    function brandCard() {
+      var b = S.brand();
+      var rep = S.storageReport();
+      var palette = b && b.colors.length
+        ? '<div class="bc-palette">' + b.colors.slice(0, 5).map(function (c) {
+            return '<div class="bc-swatch"><i style="background:' + A.esc(c.hex) + '"></i>' +
+              '<span>' + A.esc(S.name(c, A.lang()) || c.hex) + '</span></div>';
+          }).join('') + '</div>'
+        : '';
+      var left = '<div class="bc-left">' +
+        '<p class="label">' + A.esc(A.t('bc.label')) + '</p>' +
+        (b
+          ? '<h3>' + A.esc(b.name || 'Studio') + '</h3>' +
+            '<p class="tag">' + A.esc(b.tagline || A.t('bb.noTagline')) + '</p>' + palette
+          : '<h3>' + A.esc(A.t('dash.noBrand')) + '</h3>' +
+            '<p class="tag">' + A.esc(A.t('dash.noBrandHint')) + '</p>' +
+            '<div class="bc-cta"><a class="btn btn-ghost btn-sm" href="brand.html"><span>' +
+              A.esc(A.t('be.btn')) + '</span><span class="arr"></span></a></div>') +
+      '</div>';
+
+      /* real numbers only — this is browser storage, and it says so */
+      var right = '<div class="bc-right bc-store">' +
+        '<p class="label">' + A.esc(A.t('bc.store')) + '</p>' +
+        '<p class="n">' + rep.fileCount + ' <span>' + A.esc(A.t('dash.filesUnit')) + '</span></p>' +
+        '<p class="bc-note">' + A.esc(A.t('dash.storeNote', { folders: rep.folderCount })) + '</p>' +
+        '<a class="link-btn" href="files.html">' + A.esc(A.t('dash.openFiles')) + '</a>' +
+      '</div>';
+
+      return left + right;
+    }
+
+    function render() {
+      /* stat */
+      A.qs('#statDesigns').textContent = S.stats().designs;
+
+      /* recent assets — same card language as phase 1 */
+      var wrap = A.qs('#recentAssets');
+      wrap.innerHTML = '';
+      var recent = S.recentDesigns(6);
+      if (!recent.length) {
+        wrap.innerHTML = emptyRow('dash.noDesigns', 'df.title');
+        A.qs('[data-empty]', wrap).addEventListener('click', newDesign);
+      }
+      recent.forEach(function (d) {
+        var card = document.createElement('a');
+        card.className = 'asset-card';
+        card.href = 'design.html?id=' + d.id;
+        card.innerHTML =
+          '<figure class="asset-fig"><img src="' + A.img(d.cover) + '" alt="" loading="lazy"></figure>' +
+          '<div class="asset-meta"><h3 class="asset-title">' + A.esc(S.name(d, A.lang())) + '</h3>' +
+            '<span class="view-cue">' + A.esc(A.t('act.openDesign')) + '<span class="arr"></span></span></div>' +
+          '<p class="asset-sub">' + A.esc(S.typeLabel(d.type, A.lang())) + ' · ' + d.year + '</p>';
+        wrap.appendChild(card);
+      });
+
+      /* recent collections */
+      var cc = A.qs('#recentColls');
+      cc.innerHTML = '';
+      var colls = S.recentCollections(3);
+      if (!colls.length) {
+        cc.innerHTML = emptyRow('dash.noCollections', 'act.newCollection');
+        A.qs('[data-empty]', cc).addEventListener('click', function () {
+          A.openCollectionModal({ onSaved: function (c, isNew) {
+            if (isNew && c) A.go('collection.html?id=' + c.id);
+            else render();
+          } });
+        });
+      }
+      colls.forEach(function (c) {
+        var row = document.createElement('a');
+        row.className = 'coll-row';
+        row.href = 'collection.html?id=' + c.id;
+        row.innerHTML =
+          '<figure class="coll-thumb"><img src="' + A.img(c.cover) + '" alt="" loading="lazy"></figure>' +
+          '<div><h3 class="coll-name">' + A.esc(S.name(c, A.lang())) + '</h3>' +
+            '<p class="coll-count">' + c.designIds.length + ' ' + A.esc(A.t('unit.designs')) + '</p></div>' +
+          '<p class="coll-upd">' + A.esc(A.t('meta.updated')) + ' ' + A.esc(A.rel(c.updatedAt)) + '</p>' +
+          '<span class="arr"></span>';
+        cc.appendChild(row);
+      });
+
+      /* recent projects */
+      var pp = A.qs('#recentProjs');
+      pp.innerHTML = '';
+      var projs = S.recentProjects(3);
+      if (!projs.length) {
+        pp.innerHTML = emptyRow('dash.noProjects', 'act.newProject');
+        A.qs('[data-empty]', pp).addEventListener('click', function () {
+          A.openProjectModal({ onSaved: function (p, isNew) {
+            if (isNew && p) A.go('project.html?id=' + p.id);
+            else render();
+          } });
+        });
+      }
+      projs.forEach(function (p) {
+        var designs = S.designsByProject(p.id);
+        var row = document.createElement('a');
+        row.className = 'coll-row';
+        row.href = 'project.html?id=' + p.id;
+        row.innerHTML =
+          '<figure class="coll-thumb">' + (designs[0] ? '<img src="' + A.img(designs[0].cover) + '" alt="" loading="lazy">' : '') + '</figure>' +
+          '<div><h3 class="coll-name">' + A.esc(S.name(p, A.lang())) + '</h3>' +
+            '<p class="coll-count"><span class="pill pill--' + p.status + ' pill--sm">' + A.esc(S.projStatusLabel(p.status, A.lang())) + '</span></p></div>' +
+          '<p class="coll-upd">' + designs.length + ' ' + A.esc(A.t('unit.designs')) + '</p>' +
+          '<p class="coll-upd">' + A.esc(A.t('meta.updated')) + ' ' + A.esc(A.rel(p.updatedAt)) + '</p>' +
+          '<span class="arr"></span>';
+        pp.appendChild(row);
+      });
+
+      /* brand + honest storage */
+      A.qs('#dashBrand').innerHTML = brandCard();
+    }
+
+    A.page(render);
+  })();
+  </script>
+</body>
+</html>

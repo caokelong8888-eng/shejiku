@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="p.library.title">设计库 — Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' fill='none' stroke='%231D1B18' stroke-width='2.5'/><rect x='10' y='10' width='12' height='12' fill='%231D1B18'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="dash" data-page="library">
+
+  <aside class="dash-side" id="dashSide"></aside>
+  <div class="side-scrim" id="sideScrim"></div>
+
+  <div class="dash-main">
+    <header class="dash-top">
+      <div class="crumb">
+        <button class="menu-btn" id="menuBtn" type="button" aria-label="打开菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <a href="dashboard.html" data-i18n="side.myspace">我的空间</a>
+        <span class="sep">/</span>
+        <span data-i18n="p.library.title">设计库</span>
+      </div>
+      <div class="top-actions">
+        <div class="lang-switch" role="group" aria-label="语言切换 / Language">
+          <button type="button" data-lang="zh" class="is-on">中文</button>
+          <span class="sep"></span>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="index.html"><span data-i18n="top.viewsite">查看网站</span><span class="arr arr-up"></span></a>
+        <button class="btn btn-sm" type="button" id="addAssetBtn"><span data-i18n="top.addasset">添加资产</span><span class="arr"></span></button>
+      </div>
+    </header>
+
+    <main class="page">
+      <div class="page-head">
+        <div>
+          <h1 data-i18n="p.library.title">设计库</h1>
+          <p class="ph-sub" data-i18n="p.library.sub">你保存的每一件设计，都在这里。</p>
+        </div>
+        <div class="ph-actions">
+          <div class="view-toggle" id="viewToggle">
+            <button type="button" data-view="grid" class="is-on" data-i18n="view.grid">网格</button>
+            <button type="button" data-view="list" data-i18n="view.list">列表</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search-box">
+          <input class="input" id="libSearch" type="search" placeholder="搜索作品名称…" data-i18n-ph="ph.search">
+        </div>
+        <button class="btn btn-ghost btn-sm" id="libFilterBtn" type="button">
+          <span data-i18n="lib.filter"></span><span class="filter-n" id="libFilterN" hidden></span>
+        </button>
+        <div class="cl-sort">
+          <select class="select" id="libSort">
+            <option value="updated" data-i18n="sort.updated">最近修改</option>
+            <option value="created" data-i18n="sort.created">最近创建</option>
+            <option value="name" data-i18n="sort.name">名称</option>
+          </select>
+        </div>
+        <span class="lib-count" id="libCount"></span>
+        <button class="btn btn-ghost btn-sm" id="libSelectBtn" type="button"><span data-i18n="sel.pick"></span></button>
+      </div>
+
+      <div class="chips lib-scopes" id="libChips"></div>
+
+      <div class="lib-active" id="libActive"></div>
+
+      <div id="libArea"></div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+  (function () {
+    var A = window.StudioApp, S = window.StudioStore;
+    var area = A.qs('#libArea');
+    /* every dimension is AND-ed; within one dimension one value at a time */
+    var filters = { type: 'all', style: '', theme: '', metal: '', stone: '', status: '',
+                    tagId: '', complete: '', collectionId: '', projectId: '', sinceDays: 0,
+                    favorite: false, archived: false, untagged: false };
+    /* deep links from the tag module / completeness hints */
+    (function () {
+      var sp = new URLSearchParams(location.search);
+      if (sp.get('tag')) filters.tagId = sp.get('tag');
+      if (sp.get('complete')) filters.complete = sp.get('complete');
+      if (sp.get('untagged') === '1') filters.untagged = true;
+    })();
+    var selected = [];
+    var selecting = false;
+    /* the sort choice survives a reload; filters deliberately do not, so the
+       library always opens on the full set */
+    var sort = (function () {
+      try { return localStorage.getItem('studio-lib-sort') || 'updated'; } catch (e) { return 'updated'; }
+    })();
+    var view = 'grid';
+    var q = '';
+
+    function scopeVal() {
+      if (filters.archived) return 'archived';
+      if (filters.favorite) return 'favorite';
+      return 'all';
+    }
+    function setScope(v) {
+      filters.archived = v === 'archived';
+      filters.favorite = v === 'favorite';
+    }
+
+    function chip(label, attr, val, on) {
+      return '<button class="chip' + (on ? ' is-on' : '') + '" ' + attr + '="' + val + '" type="button">' + A.esc(label) + '</button>';
+    }
+
+    function renderChips() {
+      var types = Object.keys(S.TYPES);
+      var sc = scopeVal();
+      A.qs('#libChips').innerHTML =
+        chip(A.t('f.all'), 'data-scope', 'all', sc === 'all') +
+        chip(A.t('f.favorite'), 'data-scope', 'favorite', sc === 'favorite') +
+        chip(A.t('f.archived'), 'data-scope', 'archived', sc === 'archived') +
+        '<span class="chip-sep"></span>' +
+        chip(A.t('f.all'), 'data-type', 'all', filters.type === 'all') +
+        types.map(function (k) {
+          return chip(S.typeLabel(k, A.lang()), 'data-type', k, filters.type === k);
+        }).join('');
+    }
+
+    /* the advanced dimensions, shown as removable pills */
+    function activeFilters() {
+      var out = [], lang = A.lang();
+      if (filters.tagId) {
+        var tg = S.tag(filters.tagId);
+        if (tg) out.push(['tagId', A.t('side.tags') + ' · ' + S.tagLabel(tg, lang)]);
+      }
+      if (filters.untagged) out.push(['untagged', A.t('cp.tags')]);
+      if (filters.style) out.push(['style', A.t('dim.style') + ' · ' + S.styleLabel(filters.style, lang)]);
+      if (filters.theme) out.push(['theme', A.t('dim.theme') + ' · ' + S.themeLabel(filters.theme, lang)]);
+      if (filters.metal) out.push(['metal', A.t('dd.metal') + ' · ' + S.metalLabel(filters.metal, lang)]);
+      if (filters.stone) out.push(['stone', A.t('dd.stone') + ' · ' + S.stoneLabel(filters.stone, lang)]);
+      if (filters.status) out.push(['status', A.t('dd.designStatus') + ' · ' + S.dstatLabel(filters.status, lang)]);
+      if (filters.complete) {
+        var cpMap = { complete: 'cp.filterComplete', missing: 'cp.filterMissing',
+                      tags: 'cp.filterNoTags', description: 'cp.filterNoDesc' };
+        out.push(['complete', A.t('cp.label') + ' · ' + A.t(cpMap[filters.complete] || 'cp.filterMissing')]);
+      }
+      if (filters.collectionId) {
+        var c = S.collection(filters.collectionId);
+        if (c) out.push(['collectionId', A.t('meta.collections') + ' · ' + S.name(c, lang)]);
+      }
+      if (filters.projectId) {
+        var p = S.project(filters.projectId);
+        if (p) out.push(['projectId', A.t('meta.project') + ' · ' + S.name(p, lang)]);
+      }
+      if (filters.sinceDays) out.push(['sinceDays', A.t('f.recent') + ' ' + filters.sinceDays + ' ' + A.t('f.days')]);
+      return out;
+    }
+
+    function renderActive() {
+      var list = activeFilters();
+      var el = A.qs('#libActive');
+      el.innerHTML = list.length
+        ? list.map(function (x) {
+            return '<button class="af-chip" type="button" data-clear="' + x[0] + '">' + A.esc(x[1]) +
+              '<span class="af-x">×</span></button>';
+          }).join('') +
+          '<button class="af-clear" type="button" data-clear-all="1">' + A.esc(A.t('f.clearAll')) + '</button>'
+        : '';
+      var n = list.length;
+      var badge = A.qs('#libFilterN');
+      badge.hidden = n === 0;
+      badge.textContent = n;
+    }
+
+    function currentList() {
+      return S.filterDesigns({
+        archived: filters.archived ? true : undefined,
+        favorite: filters.favorite,
+        type: filters.type,
+        style: filters.style,
+        theme: filters.theme,
+        metal: filters.metal,
+        stone: filters.stone,
+        status: filters.status,
+        tagId: filters.tagId,
+        untagged: filters.untagged,
+        complete: filters.complete,
+        collectionId: filters.collectionId,
+        projectId: filters.projectId,
+        sinceDays: filters.sinceDays,
+        q: q,
+        sort: sort
+      });
+    }
+
+    /* everything except type / scope / text search */
+    function clearAdvanced() {
+      filters.style = filters.theme = filters.metal = filters.stone = filters.status = '';
+      filters.tagId = '';
+      filters.complete = '';
+      filters.untagged = false;
+      filters.collectionId = filters.projectId = '';
+      filters.sinceDays = 0;
+    }
+
+    function gridView(list) {
+      var g = document.createElement('div');
+      g.className = 'design-grid';
+      list.forEach(function (d) {
+        var card = A.designCard(d, {
+          context: 'library', onChange: render,
+          selectable: selecting, selectedIds: selected,
+          onSelect: function (id, on) { setPicked(id, on); }
+        });
+        /* completeness mark — a hint, never an auto-fix */
+        var cp = S.completeness(d);
+        var pill = document.createElement('span');
+        pill.className = 'cp-pill ' + (cp.missing.length ? 'is-warn' : 'is-ok');
+        pill.textContent = A.t(cp.missing.length ? 'cp.missing' : 'cp.complete');
+        pill.title = cp.missing.length
+          ? cp.missing.map(function (k) { return A.t('cp.' + (k === 'taxonomy' ? 'taxonomy' : k)); }).join(' · ')
+          : A.t('cp.complete');
+        card.appendChild(pill);
+        g.appendChild(card);
+      });
+      area.innerHTML = '';
+      area.appendChild(g);
+    }
+
+    function setPicked(id, on) {
+      var i = selected.indexOf(id);
+      if (on && i === -1) selected.push(id);
+      if (!on && i !== -1) selected.splice(i, 1);
+      drawSelBar();
+    }
+
+    function listView(list) {
+      area.innerHTML =
+        '<div class="design-rows">' +
+          '<div class="design-row dr-head">' +
+            '<span></span><span>' + A.esc(A.t('l.name')) + '</span>' +
+            '<span>' + A.esc(A.t('l.collections')) + '</span>' +
+            '<span>' + A.esc(A.t('l.type')) + '</span>' +
+            '<span>' + A.esc(A.t('l.updated')) + '</span><span></span>' +
+          '</div>' +
+        '</div>';
+      var rows = A.qs('.design-rows', area);
+      list.forEach(function (d) {
+        var proj = d.projectId ? S.project(d.projectId) : null;        var row = document.createElement('div');
+        row.className = 'design-row';
+        var cp = S.completeness(d);
+        row.innerHTML =
+          '<div class="dr-thumb"><img src="' + A.img(d.cover) + '" alt="" loading="lazy">' +
+            (selecting ? '<label class="dr-check"><input type="checkbox" data-pick="' + d.id + '"' +
+              (selected.indexOf(d.id) !== -1 ? ' checked' : '') + '></label>' : '') + '</div>' +
+          '<div><h3 class="dr-name"><a href="design.html?id=' + d.id + '">' + A.esc(S.name(d, A.lang())) + '</a></h3>' +
+            '<p class="dr-col">' + d.year + (proj ? ' · ' + A.esc(S.name(proj, A.lang())) : '') +
+            (cp.missing.length ? ' · <span class="dr-cp">' + A.esc(A.t('cp.missing')) + '</span>' : '') + '</p></div>' +
+          '<div class="dr-col">' + d.collectionIds.length + ' ' + A.esc(A.t('unit.collections')) +
+            (d.favorite ? ' · ' + A.esc(A.t('f.favorite')) : '') + '</div>' +
+          '<div class="dr-col">' + A.esc(S.typeLabel(d.type, A.lang())) + '</div>' +
+          '<div class="dr-col">' + A.esc(A.rel(d.updatedAt)) + '</div>' +
+          '<button class="dr-more" type="button" aria-label="' + A.esc(A.t('act.more')) + '">···</button>';
+        A.qs('.dr-more', row).addEventListener('click', function (e) {
+          e.stopPropagation();
+          A.menu(e.currentTarget, moreItems(d));
+        });
+        row.addEventListener('click', function (e) {
+          if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.dr-check')) return;
+          location.href = 'design.html?id=' + d.id;
+        });
+        var cb = A.qs('.dr-check input', row);
+        if (cb) {
+          cb.addEventListener('change', function () { setPicked(d.id, cb.checked); });
+        }
+        rows.appendChild(row);
+      });
+    }
+
+    function moreItems(d) {
+      return [
+        { label: A.t('act.openDesign'), onClick: function () { location.href = 'design.html?id=' + d.id; } },
+        { divider: true },
+        { label: A.t('dd.addToCollection'), onClick: function () { A.pickCollections([d.id], render); } },
+        { label: A.t('dd.addToProject'), onClick: function () { A.pickProject(d.id, render); } },
+        { label: d.favorite ? A.t('t.unfavorited') : A.t('t.favorited'), on: d.favorite,
+          onClick: function () { S.toggleFavorite(d.id); render(); } },
+        { label: d.archived ? A.t('t.unarchived') : A.t('f.archived'), on: d.archived,
+          onClick: function () { S.toggleArchive(d.id); render(); } }
+      ];
+    }
+
+    function render() {
+      renderChips();
+      renderActive();
+      var list = currentList();
+      var cnt = A.qs('#libCount');
+      if (cnt) cnt.textContent = list.length + ' ' + A.t('unit.designs');
+
+      /* a selection never outlives the current result set */
+      var visible = {};
+      list.forEach(function (d) { visible[d.id] = 1; });
+      selected = selected.filter(function (id) { return visible[id]; });
+      var selBtn = A.qs('#libSelectBtn span');
+      if (selBtn) selBtn.textContent = A.t(selecting ? 'sel.clear' : 'sel.pick');
+      if (A.qs('#libSelectBtn')) A.qs('#libSelectBtn').classList.toggle('is-on', selecting);
+
+      A.qsa('#viewToggle button').forEach(function (b) {
+        b.classList.toggle('is-on', b.getAttribute('data-view') === view);
+      });
+
+      if (!list.length) {
+        /* "the library is empty" and "this filter matched nothing" are
+           different situations and deserve different copy */
+        var emptyLib = S.stats().allDesigns === 0;
+        var t1 = emptyLib ? 'empty.libNew.title' : 'empty.library.title';
+        var t2 = emptyLib ? 'empty.libNew.hint' : 'empty.library.hint';
+        area.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="es-mark"></div>' +
+            '<h2 class="es-title">' + A.esc(A.t(t1)) + '</h2>' +
+            '<p class="es-hint">' + A.esc(A.t(t2)) + '</p>' +
+            '<div class="es-btn"><button class="btn" id="emptyNewDesign" type="button">' +
+              '<span>' + A.esc(A.t('df.title')) + '</span><span class="arr"></span></button></div>' +
+          '</div>';
+        var nb = A.qs('#emptyNewDesign');
+        if (nb) nb.addEventListener('click', newDesign);
+        return;
+      }
+      if (view === 'grid') gridView(list); else listView(list);
+      drawSelBar(list);
+    }
+
+    /* ---------------- bulk selection ---------------- */
+    function drawSelBar(list) {
+      list = list || currentList();
+      var bar = A.qs('#libSelBar');
+      if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'libSelBar';
+        bar.className = 'cl-selbar lib-selbar';
+        bar.hidden = true;
+        document.body.appendChild(bar);
+        bar.addEventListener('click', function (e) {
+          var b = e.target.closest('[data-bulk]');
+          if (b) bulk(b.getAttribute('data-bulk'), list);
+        });
+      }
+      if (!selecting || !selected.length) { bar.hidden = true; return; }
+      bar.hidden = false;
+      var allOn = selected.length === list.length;
+      bar.innerHTML =
+        '<span class="sel-count">' + A.esc(A.t('sel.count', { n: selected.length })) + '</span>' +
+        '<button class="sel-act" type="button" data-bulk="all">' + A.esc(A.t(allOn ? 'sel.none' : 'sel.all')) + '</button>' +
+        '<button class="sel-act" type="button" data-bulk="tagAdd">' + A.esc(A.t('sel.tagAdd')) + '</button>' +
+        '<button class="sel-act" type="button" data-bulk="tagRemove">' + A.esc(A.t('sel.tagRemove')) + '</button>' +
+        '<button class="sel-act" type="button" data-bulk="classify">' + A.esc(A.t('sel.classify')) + '</button>' +
+        '<button class="sel-act" type="button" data-bulk="fav">' + A.esc(A.t('sel.favorite')) + '</button>' +
+        '<button class="sel-act" type="button" data-bulk="unfav">' + A.esc(A.t('sel.unfavorite')) + '</button>' +
+        '<button class="sel-act is-danger" type="button" data-bulk="archive">' + A.esc(A.t('sel.archive')) + '</button>' +
+        '<button class="sel-x" type="button" data-bulk="clear">' + A.esc(A.t('sel.clear')) + '</button>';
+    }
+
+    function afterBulk() {
+      drawSelBar();
+      render();
+    }
+
+    function bulk(kind, list) {
+      var ids = selected.slice();
+      if (!ids.length) return;
+      if (kind === 'clear') {
+        selected = [];
+        selecting = false;
+        render();
+        return;
+      }
+      if (kind === 'all') {
+        var allOn = selected.length === list.length;
+        selected = allOn ? [] : list.map(function (d) { return d.id; });
+        render();
+        return;
+      }
+      if (kind === 'tagAdd' || kind === 'tagRemove') {
+        A.pickTags({
+          mode: kind === 'tagRemove' ? 'remove' : 'add', designIds: ids,
+          onDone: afterBulk
+        });
+        return;
+      }
+      if (kind === 'classify') { openBulkClassify(ids); return; }
+      if (kind === 'fav' || kind === 'unfav') {
+        var fav = kind === 'fav';
+        var n = S.bulkUpdateDesigns(ids, { favorite: fav });
+        A.toast(A.t(fav ? 'sel.doneFav' : 'sel.doneUnfav', { n: n }));
+        afterBulk();
+        return;
+      }
+      if (kind === 'archive') {
+        A.confirm({
+          title: A.t('sel.confirmArchive'),
+          hint: A.t('sel.confirmArchiveHint', { n: ids.length }),
+          confirmLabel: A.t('sel.archive'),
+          onConfirm: function () {
+            var n = S.bulkUpdateDesigns(ids, { archived: true, favorite: false });
+            A.toast(A.t('sel.doneArchive', { n: n }));
+            selected = [];
+            selecting = false;
+            render();
+          }
+        });
+      }
+    }
+
+    /* bulk classification: only the dimensions the user touches are written */
+    function openBulkClassify(ids) {
+      var picks = {};
+      var dims = ['type', 'style', 'metal', 'stone', 'status', 'theme'];
+      var body = document.createElement('div');
+      body.innerHTML = '<p class="pt-hint">' + A.esc(A.t('sel.classifyHint')) + '</p>' +
+        dims.map(function (dim) {
+          return '<div class="bc-dim" data-dim="' + dim + '">' +
+            '<p class="bc-label">' + A.esc(A.t('dim.' + dim)) + '</p>' +
+            '<div class="bc-opts">' + S.taxOptions(dim).map(function (o) {
+              return '<button class="de-opt" type="button" data-dim="' + dim + '" data-val="' + o.key + '">' +
+                A.esc(A.lang() === 'en' ? (o.en || o.zh) : o.zh) + '</button>';
+            }).join('') + '</div></div>';
+        }).join('') +
+        '<p class="m-hint" id="bcNote">' + A.esc(A.t('sel.classifyNone')) + '</p>';
+
+      body.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-dim][data-val]');
+        if (!b) return;
+        var dim = b.getAttribute('data-dim'), val = b.getAttribute('data-val');
+        picks[dim] = picks[dim] === val ? undefined : val;
+        A.qsa('[data-dim="' + dim + '"] .de-opt', body).forEach(function (x) {
+          x.classList.toggle('is-on', x === b && picks[dim] === val);
+        });
+        var note = A.qs('#bcNote', body);
+        var k = Object.keys(picks).filter(function (x) { return picks[x] !== undefined; });
+        note.textContent = k.length
+          ? k.map(function (x) { return A.t('dim.' + x) + ' · ' +
+              S.taxLabel(x, picks[x], A.lang()); }).join('   ')
+          : A.t('sel.classifyNone');
+      });
+
+      A.modal({
+        title: A.t('sel.classifyTitle'), body: body, size: 'lg', focus: false,
+        footer: [
+          { label: A.t('act.cancel'), onClick: function (c) { c(); } },
+          { label: A.t('sel.apply'), primary: true, onClick: function (c) {
+            var patch = {};
+            Object.keys(picks).forEach(function (k) {
+              if (picks[k] !== undefined) patch[k] = picks[k];
+            });
+            if (!Object.keys(patch).length) { A.toast(A.t('sel.classifyNone')); return; }
+            var n = S.bulkUpdateDesigns(ids, patch);
+            c();
+            A.toast(A.t('sel.doneClassify', { n: n }));
+            afterBulk();
+          } }
+        ]
+      });
+    }
+
+    /* wire */
+    A.qs('#libChips').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-scope],[data-type]');
+      if (!b) return;
+      if (b.hasAttribute('data-scope')) setScope(b.getAttribute('data-scope'));
+      else filters.type = b.getAttribute('data-type');
+      render();
+    });
+
+    A.qs('#libSort').value = sort;
+    A.qs('#libSort').addEventListener('change', function (e) {
+      sort = e.target.value;
+      try { localStorage.setItem('studio-lib-sort', sort); } catch (err) {}
+      render();
+    });
+
+    A.qs('#libActive').addEventListener('click', function (e) {
+      var one = e.target.closest('[data-clear]');
+      if (one) {
+        var k = one.getAttribute('data-clear');
+        filters[k] = (k === 'sinceDays') ? 0 : (k === 'untagged' ? false : '');
+        render();
+        return;
+      }
+      if (e.target.closest('[data-clear-all]')) {
+        clearAdvanced();
+        render();
+      }
+    });
+
+    A.qs('#libFilterBtn').addEventListener('click', openFilters);
+
+    /* ---- advanced filter panel: one value per dimension, applied live ---- */
+    function openFilters() {
+      var body = document.createElement('div');
+      body.className = 'fp';
+
+      function group(key, label, opts) {
+        return '<div class="fp-group"><p class="fp-label">' + A.esc(label) + '</p><div class="fp-opts">' +
+          opts.map(function (o) {
+            var on = String(filters[key]) === String(o[0]);
+            return '<button class="fp-opt' + (on ? ' is-on' : '') + '" type="button" ' +
+              'data-key="' + key + '" data-val="' + o[0] + '">' + A.esc(o[1]) + '</button>';
+          }).join('') + '</div></div>';
+      }
+
+      /* option lists come from the workspace taxonomy, so a newly added
+         classification option is filterable immediately */
+      function optsOf(dim) {
+        return [['', A.t('f.any')]].concat(S.taxOptions(dim).map(function (o) {
+          return [o.key, A.lang() === 'en' ? (o.en || o.zh) : o.zh];
+        }));
+      }
+
+      function draw() {
+        var tags = [['', A.t('f.any')]].concat(S.tags().map(function (t) {
+          return [t.id, S.tagLabel(t, A.lang()) + ' · ' + S.tagUsage(t.id)];
+        }));
+        var colls = S.collections().map(function (c) { return [c.id, S.name(c, A.lang())]; });
+        var projs = S.projects().map(function (p) { return [p.id, S.name(p, A.lang())]; });
+
+        body.innerHTML =
+          '<p class="fp-hint">' + A.esc(A.t('f.hintAnd')) + '</p>' +
+          '<div class="fp-scroll">' +
+          group('tagId', A.t('side.tags'), tags) +
+          group('style', A.t('dim.style'), optsOf('style')) +
+          group('metal', A.t('dim.metal'), optsOf('metal')) +
+          group('stone', A.t('dim.stone'), optsOf('stone')) +
+          group('status', A.t('dim.status'), optsOf('status')) +
+          group('theme', A.t('dim.theme'), optsOf('theme')) +
+          group('complete', A.t('cp.label'), [
+            ['', A.t('f.any')], ['complete', A.t('cp.filterComplete')],
+            ['missing', A.t('cp.filterMissing')], ['tags', A.t('cp.filterNoTags')],
+            ['description', A.t('cp.filterNoDesc')]
+          ]) +
+          '</div>' +
+          group('collectionId', A.t('meta.collections'), [['', A.t('f.any')]].concat(colls)) +
+          group('projectId', A.t('meta.project'), [['', A.t('f.any')]].concat(projs)) +
+          group('sinceDays', A.t('f.updatedWithin'), [[0, A.t('f.any')], [7, '7 ' + A.t('f.days')],
+            [30, '30 ' + A.t('f.days')], [90, '90 ' + A.t('f.days')]]) +
+          '<div class="fp-foot"><button class="link-btn" type="button" data-fp-clear="1">' + A.esc(A.t('f.clearAll')) + '</button></div>';
+      }
+
+      draw();
+
+      body.addEventListener('click', function (e) {
+        var opt = e.target.closest('[data-key]');
+        if (opt) {
+          var k = opt.getAttribute('data-key');
+          var v = opt.getAttribute('data-val');
+          filters[k] = (k === 'sinceDays') ? Number(v) : v;
+          draw();
+          render();
+          return;
+        }
+        if (e.target.closest('[data-fp-clear]')) {
+          clearAdvanced();
+          filters.type = 'all';
+          filters.favorite = filters.archived = false;
+          draw();
+          render();
+        }
+      });
+
+      A.modal({
+        title: A.t('f.title'), body: body, size: 'lg', focus: false,
+        footer: [{ label: A.t('act.done'), primary: true, onClick: function (c) { c(); render(); } }]
+      });
+    }
+    /* the library finally has a front door */
+    function newDesign() {
+      A.openDesignModal({
+        onSaved: function (d) { location.href = 'design.html?id=' + d.id; }
+      });
+    }
+    A.qs('#addAssetBtn').addEventListener('click', newDesign);
+
+    A.qs('#libSearch').addEventListener('input', function (e) {
+      q = e.target.value.trim();
+      render();
+    });
+    A.qs('#libSelectBtn').addEventListener('click', function () {
+      selecting = !selecting;
+      if (!selecting) selected = [];
+      render();
+    });
+
+    A.qs('#viewToggle').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-view]');
+      if (!b) return;
+      view = b.getAttribute('data-view');
+      render();
+    });
+
+    A.page(render);
+  })();
+  </script>
+</body>
+</html>

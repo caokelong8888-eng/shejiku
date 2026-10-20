@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="p.projects.title">项目 — Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' fill='none' stroke='%231D1B18' stroke-width='2.5'/><rect x='10' y='10' width='12' height='12' fill='%231D1B18'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="dash" data-page="projects">
+
+  <aside class="dash-side" id="dashSide"></aside>
+  <div class="side-scrim" id="sideScrim"></div>
+
+  <div class="dash-main">
+    <header class="dash-top">
+      <div class="crumb">
+        <button class="menu-btn" id="menuBtn" type="button" aria-label="打开菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <a href="dashboard.html" data-i18n="side.myspace">我的空间</a>
+        <span class="sep">/</span>
+        <span data-i18n="p.projects.title">项目</span>
+      </div>
+      <div class="top-actions">
+        <div class="lang-switch" role="group" aria-label="语言切换 / Language">
+          <button type="button" data-lang="zh" class="is-on">中文</button>
+          <span class="sep"></span>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="index.html"><span data-i18n="top.viewsite">查看网站</span><span class="arr arr-up"></span></a>
+      </div>
+    </header>
+
+    <main class="page">
+      <div class="page-head">
+        <div>
+          <h1 data-i18n="p.projects.title">项目</h1>
+          <p class="ph-sub" data-i18n="p.projects.sub">从一次具体的创作过程开始。</p>
+        </div>
+        <div class="ph-actions">
+          <button class="btn" id="newProjBtn" type="button">
+            <span data-i18n="act.newProject">新建项目</span><span class="arr"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search-box">
+          <input class="input" id="projSearch" type="search" placeholder="搜索项目…" data-i18n-ph="ph.searchProject">
+        </div>
+        <div class="chips" id="projChips"></div>
+      </div>
+
+      <div id="projArea"></div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+  (function () {
+    var A = window.StudioApp, S = window.StudioStore;
+    var area = A.qs('#projArea');
+    var state = { q: '', status: 'all' };
+
+    function row(p) {
+      var el = document.createElement('div');
+      el.className = 'proj-row';
+      var designs = S.designsByProject(p.id);
+      var cover = designs[0];
+      el.innerHTML =
+        '<div class="pr-thumb">' + (cover ? '<img src="' + A.img(cover.cover) + '" alt="" loading="lazy">' : '') + '</div>' +
+        '<div><h3 class="pr-name">' + A.esc(S.name(p, A.lang())) + '</h3>' +
+          '<p class="pr-desc">' + A.esc(S.desc(p, A.lang())) + '</p></div>' +
+        '<div><span class="pill pill--' + p.status + '">' + A.esc(S.projStatusLabel(p.status, A.lang())) + '</span></div>' +
+        '<div class="pr-col">' + p.designIds.length + ' ' + A.esc(A.t('unit.designs')) + '</div>' +
+        '<div class="pr-col">' + A.esc(A.t('meta.updated')) + ' ' + A.esc(A.rel(p.updatedAt)) + '</div>' +
+        '<span class="arr"></span>';
+      el.addEventListener('click', function () { location.href = 'project.html?id=' + p.id; });
+      return el;
+    }
+
+    function render() {
+      var chips = A.qs('#projChips');
+      chips.innerHTML =
+        '<button class="chip' + (state.status === 'all' ? ' is-on' : '') + '" data-status="all" type="button">' + A.esc(A.t('f.all')) + '</button>' +
+        '<span class="chip-sep"></span>' +
+        Object.keys(S.PSTAT).map(function (k) {
+          return '<button class="chip' + (state.status === k ? ' is-on' : '') + '" data-status="' + k + '" type="button">' +
+            A.esc(S.projStatusLabel(k, A.lang())) + '</button>';
+        }).join('');
+
+      var list = S.projects().filter(function (p) {
+        if (state.status !== 'all' && p.status !== state.status) return false;
+        if (state.q) {
+          var s = state.q.toLowerCase();
+          if ((p.name + ' ' + p.nameEn + ' ' + p.description).toLowerCase().indexOf(s) === -1) return false;
+        }
+        return true;
+      });
+
+      if (!S.projects().length) {
+        area.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="es-mark"></div>' +
+            '<h2 class="es-title">' + A.esc(A.t('empty.projects.title')) + '</h2>' +
+            '<p class="es-hint">' + A.esc(A.t('empty.projects.hint')) + '</p>' +
+            '<div class="es-btn"><button class="btn" id="emptyNewProj" type="button">' +
+              '<span>' + A.esc(A.t('empty.projects.btn')) + '</span><span class="arr"></span></button></div>' +
+          '</div>';
+        var b = A.qs('#emptyNewProj');
+        if (b) b.addEventListener('click', create);
+        return;
+      }
+
+      if (!list.length) {
+        area.innerHTML =
+          '<div class="empty-state"><div class="es-mark"></div>' +
+            '<h2 class="es-title">' + A.esc(A.t('empty.library.title')) + '</h2>' +
+            '<p class="es-hint">' + A.esc(A.t('empty.library.hint')) + '</p></div>';
+        return;
+      }
+
+      area.innerHTML = '<div class="proj-list"></div>';
+      var l = A.qs('.proj-list', area);
+      list.forEach(function (p) { l.appendChild(row(p)); });
+    }
+
+    function create() {
+      A.openProjectModal({
+        onSaved: function (p, isNew) {
+          if (isNew && p) A.go('project.html?id=' + p.id + '&new=1');
+          else render();
+        }
+      });
+    }
+
+    A.qs('#newProjBtn').addEventListener('click', create);
+    A.qs('#projChips').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-status]');
+      if (!b) return;
+      state.status = b.getAttribute('data-status');
+      render();
+    });
+    A.qs('#projSearch').addEventListener('input', function (e) {
+      state.q = e.target.value.trim();
+      render();
+    });
+
+    A.page(render);
+  })();
+  </script>
+</body>
+</html>

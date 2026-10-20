@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="meta.title">Studio — 你的作品。你的空间。</title>
+  <meta name="description" data-i18n="meta.desc" content="一处安放设计作品的安静空间。你的设计、项目与品牌资产，尽在一处。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' fill='none' stroke='%231D1B18' stroke-width='2.5'/><rect x='10' y='10' width='12' height='12' fill='%231D1B18'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <!-- ===================== Header ===================== -->
+  <header class="site-head" id="siteHead">
+    <a class="logo" href="index.html" aria-label="Studio home">
+      <span class="logo-mark" aria-hidden="true"></span>
+      <span class="logo-type">Studio</span>
+    </a>
+    <div class="head-right">
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#" data-i18n="nav.product">产品</a>
+        <a href="#" data-i18n="nav.pricing">定价</a>
+        <a href="login.html" data-i18n="nav.login">登录</a>
+      </nav>
+      <div class="lang-switch" role="group" aria-label="语言切换 / Language">
+        <button type="button" data-lang="zh" class="is-on">中文</button>
+        <span class="sep"></span>
+        <button type="button" data-lang="en">EN</button>
+      </div>
+      <a class="btn btn-sm" href="dashboard.html"><span data-i18n="cta.create">创建你的空间</span><span class="arr"></span></a>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ===================== Hero + Editorial Gallery ===================== -->
+    <section class="hero">
+      <div class="container">
+        <p class="label hero-eyebrow" data-reveal data-i18n="hero.eyebrow">设计资产 · 项目 · 品牌 · 网站</p>
+        <h1 class="display" data-reveal style="--rd:60ms" data-i18n="hero.h1">你的作品。<span class="l2">你的空间。</span></h1>
+        <p class="hero-lead" data-reveal style="--rd:120ms" data-i18n="hero.lead">你的设计、项目和品牌资产，尽在一处。</p>
+        <div class="hero-cta" data-reveal style="--rd:180ms">
+          <a class="btn" href="dashboard.html"><span data-i18n="cta.create">创建你的空间</span><span class="arr"></span></a>
+          <span class="hero-note" data-i18n="hero.note">一处安放持续创作的安静之地。</span>
+        </div>
+      </div>
+
+      <div class="container gallery-band" id="galleryBand">
+        <div class="gallery" id="gallery" data-parallax>
+          <figure class="gtile g1"><img src="assets/img/vase.jpg" alt="Matte cream ceramic vessel on a stone plinth" loading="eager"></figure>
+          <figure class="gtile g2"><img src="assets/img/paper.jpg" alt="Folded paper sculpture with soft shadows" loading="eager"></figure>
+          <figure class="gtile g3"><img src="assets/img/corner.jpg" alt="Minimal architectural corner with daylight" loading="eager"></figure>
+          <figure class="gtile g4"><img src="assets/img/sphere.jpg" alt="White marble sphere on a concrete cube" loading="lazy"></figure>
+          <figure class="gtile g5"><img src="assets/img/amber.jpg" alt="Amber glass bottle still life" loading="lazy"></figure>
+          <figure class="gtile g6"><img src="assets/img/chair.jpg" alt="Minimal wooden chair against a plaster wall" loading="lazy"></figure>
+          <figure class="gtile g7"><img src="assets/img/textile.jpg" alt="Handwoven textile detail in oatmeal tones" loading="lazy"></figure>
+          <figure class="gtile g8"><img src="assets/img/stones.jpg" alt="Row of smooth river stones" loading="lazy"></figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Asset Flow ===================== -->
+    <section class="flow" id="flow">
+      <div class="flow-track" id="flowTrack">
+        <div class="flow-viewport">
+          <div class="flow-head">
+            <p class="label" data-i18n="flow.label">资产流转</p>
+            <h2 data-i18n="flow.h2">一份资产。<br>多种可能。</h2>
+          </div>
+
+          <div class="flow-stage" id="flowStage">
+
+            <!-- 01 Design Asset -->
+            <div class="stage is-active" data-stage="0">
+              <div class="st-asset-img">
+                <img src="assets/img/vase.jpg" alt="A single design asset">
+              </div>
+              <p class="stage-cap" data-i18n="flow.cap0"><b>一份设计资产。</b>一次保存，妥善留存。</p>
+            </div>
+
+            <!-- 02 Collection -->
+            <div class="stage" data-stage="1">
+              <div class="st-frame st-col">
+                <div class="st-col-head">
+                  <span class="t" data-i18n="flow.col.name">静形式</span>
+                  <span class="label" data-i18n="flow.col.count">24 件设计</span>
+                </div>
+                <div class="st-col-grid">
+                  <figure><img src="assets/img/vase.jpg" alt=""></figure>
+                  <figure><img src="assets/img/paper.jpg" alt=""></figure>
+                  <figure><img src="assets/img/linen.jpg" alt=""></figure>
+                  <figure><img src="assets/img/sphere.jpg" alt=""></figure>
+                </div>
+              </div>
+              <p class="stage-cap" data-i18n="flow.cap1">归入一个<b>合集</b>。</p>
+            </div>
+
+            <!-- 03 Project -->
+            <div class="stage" data-stage="2">
+              <div class="st-frame st-proj">
+                <div class="st-proj-text">
+                  <p class="label" data-i18n="flow.proj.label">项目</p>
+                  <h3 data-i18n="flow.proj.title">陶瓷 <em>系列 01</em></h3>
+                  <p class="st-proj-meta" data-i18n="flow.proj.meta">2026 · 12 项资产</p>
+                  <span class="st-lines"><i></i><i></i><i></i></span>
+                </div>
+                <figure class="st-proj-img"><img src="assets/img/vase.jpg" alt=""></figure>
+              </div>
+              <p class="stage-cap" data-i18n="flow.cap2">用于一个<b>项目</b>之中。</p>
+            </div>
+
+            <!-- 04 Brand -->
+            <div class="stage" data-stage="3">
+              <div class="st-frame st-brand-board">
+                <span class="st-brand-mark">A01</span>
+                <div>
+                  <h3>Atelier No.01</h3>
+                  <p class="tag" data-i18n="flow.brand.tag">有意义的器物。</p>
+                  <span class="st-swatches">
+                    <i style="background:#F6F4EF"></i>
+                    <i style="background:#EDE7DC"></i>
+                    <i style="background:#D8CBB8"></i>
+                    <i style="background:#A79E90"></i>
+                    <i style="background:#23211E"></i>
+                  </span>
+                </div>
+              </div>
+              <p class="stage-cap" data-i18n="flow.cap3">成为<b>品牌</b>的一部分。</p>
+            </div>
+
+            <!-- 05 Website -->
+            <div class="stage" data-stage="4">
+              <div class="st-site">
+                <div class="st-site-bar">
+                  <i></i><i></i><i></i>
+                  <span class="url">atelier-no01.studio</span>
+                </div>
+                <div class="st-site-body">
+                  <div class="st-site-nav">
+                    <span class="brand">Atelier No.01</span>
+                    <span class="links" data-i18n="flow.site.links">作品 · 工作室 · 联系</span>
+                  </div>
+                  <figure class="st-site-hero"><img src="assets/img/corner.jpg" alt=""></figure>
+                </div>
+              </div>
+              <p class="stage-cap" data-i18n="flow.cap4">发布为一个<b>网站</b>。</p>
+            </div>
+
+          </div>
+
+          <div class="flow-steps" id="flowSteps">
+            <span class="step is-active" data-step="0"><span class="n">01</span><span data-i18n="flow.step1">设计资产</span></span>
+            <span class="step" data-step="1"><span class="n">02</span><span data-i18n="flow.step2">合集</span></span>
+            <span class="step" data-step="2"><span class="n">03</span><span data-i18n="flow.step3">项目</span></span>
+            <span class="step" data-step="3"><span class="n">04</span><span data-i18n="flow.step4">品牌</span></span>
+            <span class="step" data-step="4"><span class="n">05</span><span data-i18n="flow.step5">网站</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Asset Growth ===================== -->
+    <section class="growth" id="growth">
+      <div class="growth-track" id="growthTrack">
+        <div class="growth-viewport">
+          <div class="container">
+            <div class="growth-grid">
+              <div class="growth-copy">
+                <p class="label" data-i18n="growth.label">成长</p>
+                <h2 data-i18n="growth.h2">你的设计库，<br>与你一同成长。</h2>
+                <div class="growth-num-row">
+                  <span class="growth-num" id="growthNum">12</span>
+                  <span class="growth-unit" data-i18n="growth.unit">件设计，持续增长。</span>
+                </div>
+                <div class="growth-ticks" id="growthTicks">
+                  <span class="gtick is-active">12</span>
+                  <span class="gtick">86</span>
+                  <span class="gtick">286</span>
+                  <span class="gtick">728</span>
+                </div>
+              </div>
+              <div class="growth-mosaic" id="growthMosaic">
+                <figure class="gtile-g"><img src="assets/img/vase.jpg" alt=""></figure>
+                <figure class="gtile-g"><img src="assets/img/paper.jpg" alt=""></figure>
+                <figure class="gtile-g"><img src="assets/img/linen.jpg" alt=""></figure>
+                <figure class="gtile-g"><img src="assets/img/sphere.jpg" alt=""></figure>
+                <figure class="gtile-g"><img src="assets/img/textile.jpg" alt=""></figure>
+                <figure class="gtile-g"><img src="assets/img/amber.jpg" alt=""></figure>
+                <figure class="gtile-g"><img src="assets/img/corner.jpg" alt=""></figure>
+                <figure class="gtile-g"><img src="assets/img/swatches.jpg" alt=""></figure>
+                <figure class="gtile-g"><img src="assets/img/shadows.jpg" alt=""></figure>
+                <figure class="gtile-g"><img src="assets/img/poster.jpg" alt=""></figure>
+                <figure class="gtile-g"><img src="assets/img/grass.jpg" alt=""></figure>
+                <figure class="gtile-g"><img src="assets/img/brass.jpg" alt=""></figure>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Brand / Space ===================== -->
+    <section class="brand-space">
+      <div class="container">
+        <div class="bs-grid">
+          <div class="bs-copy">
+            <p class="label" data-reveal data-i18n="bs.label">品牌空间</p>
+            <h2 data-reveal style="--rd:60ms">Atelier No.01</h2>
+            <p class="bs-tag" data-reveal style="--rd:100ms" data-i18n="bs.tag">有意义的器物。</p>
+            <p class="bs-desc" data-reveal style="--rd:140ms" data-i18n="bs.desc">
+              不止是存放图片的地方。在这里建立属于你的数字品牌空间——品牌识别、项目、合集与网站共处一地，生长成无可替代的模样。
+            </p>
+            <div class="bs-list" data-reveal style="--rd:180ms">
+              <a href="dashboard.html"><span data-i18n="bs.li1">品牌识别</span><span class="arr"></span></a>
+              <a href="dashboard.html"><span data-i18n="bs.li2">项目</span><span class="arr"></span></a>
+              <a href="dashboard.html"><span data-i18n="bs.li3">合集</span><span class="arr"></span></a>
+              <a href="dashboard.html"><span data-i18n="bs.li4">网站</span><span class="arr"></span></a>
+            </div>
+          </div>
+
+          <div class="bs-card" data-reveal style="--rd:120ms">
+            <div class="bs-card-top">
+              <span class="bs-card-mark">A01</span>
+              <div>
+                <h3>Atelier No.01</h3>
+                <p data-i18n="bs.tag">有意义的器物。</p>
+              </div>
+            </div>
+            <div class="bs-rule"></div>
+            <div class="bs-palette">
+              <div class="bs-swatch"><i style="background:#F6F4EF"></i><span data-i18n="bs.sw1">纸白</span></div>
+              <div class="bs-swatch"><i style="background:#EDE7DC"></i><span data-i18n="bs.sw2">亚麻</span></div>
+              <div class="bs-swatch"><i style="background:#D8CBB8"></i><span data-i18n="bs.sw3">沙</span></div>
+              <div class="bs-swatch"><i style="background:#A79E90"></i><span data-i18n="bs.sw4">石</span></div>
+              <div class="bs-swatch"><i style="background:#23211E"></i><span data-i18n="bs.sw5">墨</span></div>
+            </div>
+            <div class="bs-rule"></div>
+            <div class="bs-mini">
+              <div class="bs-mini-bar"><span>Atelier No.01</span><span data-i18n="bs.mini.site">网站</span></div>
+              <div class="bs-mini-img"><img src="assets/img/corner.jpg" alt="Brand website preview"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Final CTA ===================== -->
+    <section class="cta-final">
+      <div class="container">
+        <p class="label" data-reveal data-i18n="cta.label">开始</p>
+        <h2 data-reveal style="--rd:60ms" data-i18n="cta.h2">建一处容得下<br>你作品的空间。</h2>
+        <div data-reveal style="--rd:120ms">
+          <a class="btn btn-lg" href="dashboard.html"><span data-i18n="cta.createWs">创建你的工作空间</span><span class="arr"></span></a>
+        </div>
+        <p class="cta-sub" data-reveal style="--rd:180ms" data-i18n="cta.sub">你的设计。你的项目。你的品牌。你的空间。</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================== Footer ===================== -->
+  <footer class="site-foot">
+    <span>© <span id="year">2026</span> <span data-i18n="foot.copy">Studio — 安放设计作品的安静空间。</span></span>
+    <nav class="foot-links" aria-label="Footer">
+      <a href="#" data-i18n="nav.product">产品</a>
+      <a href="#" data-i18n="nav.pricing">定价</a>
+      <a href="login.html" data-i18n="nav.login">登录</a>
+    </nav>
+  </footer>
+
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/landing.js"></script>
+</body>
+</html>

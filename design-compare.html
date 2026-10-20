@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>版本对比 — Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' fill='none' stroke='%231D1B18' stroke-width='2.5'/><rect x='10' y='10' width='12' height='12' fill='%231D1B18'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="cmp" data-page="compare">
+
+  <header class="cmp-top">
+    <div class="cmp-top-l">
+      <a class="detail-back" id="cmpBack" href="design.html"><span class="arr"></span><span data-i18n="vr.backToDesign">返回设计详情</span></a>
+    </div>
+    <div class="cmp-top-c">
+      <p class="cmp-kicker" data-i18n="vr.compareTitle">版本对比</p>
+      <h1 class="cmp-name" id="cmpName"></h1>
+    </div>
+    <div class="cmp-top-r">
+      <div class="lang-switch" role="group" aria-label="语言切换 / Language">
+        <button type="button" data-lang="zh" class="is-on">中文</button>
+        <span class="sep"></span>
+        <button type="button" data-lang="en">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="cmp-main" id="cmpRoot"></main>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+  (function () {
+    var A = window.StudioApp, S = window.StudioStore;
+    var I = window.StudioI18n;
+    var root = A.qs('#cmpRoot');
+    var params = new URLSearchParams(location.search);
+    var did = params.get('design');
+    var d = S.design(did);
+    var aId = params.get('a') || null;
+    var bId = params.get('b') || null;
+    var zoom = 'fit';
+    var locked = false;          /* set when the URL came with explicit picks */
+
+    function versions() { return d ? S.versionsOf(d.id) : []; }
+
+    function pickDefaults() {
+      var vs = versions();
+      if (!vs.length) return;
+      if (!aId || !S.version(aId)) aId = d.currentVersionId || vs[vs.length - 1].id;
+      if (!bId || !S.version(bId) || bId === aId) {
+        var prev = vs.filter(function (v) { return v.id !== aId; });
+        bId = prev.length ? prev[prev.length - 1].id : null;
+      }
+    }
+    pickDefaults();
+
+    function imgOf(v) {
+      if (!v) return null;
+      var files = S.versionFiles(v.id);
+      for (var i = 0; i < files.length; i++) {
+        if (files[i].kind === 'image' && files[i].dataUrl) return files[i].dataUrl;
+      }
+      return null;
+    }
+
+    function optionHTML(v, selected) {
+      return '<option value="' + v.id + '"' + (v.id === selected ? ' selected' : '') + '>' +
+        'V' + v.versionNumber + ' · ' + A.esc(v.name) + '</option>';
+    }
+
+    function render() {
+      var nameEl = A.qs('#cmpName');
+      var back = A.qs('#cmpBack');
+      if (!d) {
+        if (back) back.href = 'library.html';
+        if (nameEl) nameEl.textContent = '';
+        root.innerHTML = '<div class="empty-state"><div class="es-mark"></div>' +
+          '<h2 class="es-title">' + A.esc(A.t('empty.library.title')) + '</h2>' +
+          '<div class="es-btn"><a class="btn" href="library.html"><span>' + A.esc(A.t('act.backToLibrary')) + '</span><span class="arr"></span></a></div></div>';
+        return;
+      }
+      if (back) back.href = 'design.html?id=' + d.id;
+      if (nameEl) nameEl.textContent = S.name(d, A.lang());
+      document.title = A.t('vr.compareTitle') + ' · ' + S.name(d, A.lang()) + ' — Studio';
+
+      var vs = versions();
+      if (vs.length < 2) {
+        root.innerHTML = '<div class="cmp-empty">' +
+          '<p class="cmp-empty-t">' + A.esc(A.t('vr.needTwo')) + '</p>' +
+          '<p class="cmp-empty-h">' + A.esc(A.t('vr.needTwoHint')) + '</p>' +
+          '<a class="btn btn-sm" href="design.html?id=' + d.id + '"><span>' + A.esc(A.t('vr.backToDesign')) + '</span><span class="arr"></span></a>' +
+        '</div>';
+        return;
+      }
+
+      var a = S.version(aId), b = S.version(bId);
+      function col(v, side) {
+        if (!v) {
+          return '<div class="cmp-col"><div class="cmp-missing">' + A.esc(A.t('vr.pickVersion')) + '</div></div>';
+        }
+        var src = imgOf(v);
+        var isCur = d.currentVersionId === v.id;
+        return '<div class="cmp-col">' +
+          '<div class="cmp-col-head">' +
+            '<select class="select cmp-select" data-side="' + side + '">' +
+              vs.map(function (x) { return optionHTML(x, v.id); }).join('') +
+            '</select>' +
+            '<div class="cmp-col-meta">' +
+              '<span class="cmp-vno">V' + v.versionNumber + '</span>' +
+              '<span class="cmp-vname">' + A.esc(v.name) + '</span>' +
+              (isCur ? '<span class="pill pill--sm pill--done">' + A.esc(A.t('vr.current')) + '</span>' : '') +
+            '</div>' +
+            '<p class="cmp-col-time">' + A.date(v.createdAt) + '</p>' +
+            (v.notes ? '<p class="cmp-col-notes">' + A.esc(v.notes) + '</p>' : '') +
+          '</div>' +
+          '<div class="cmp-fig' + (src ? ' is-' + zoom : '') + '">' +
+            (src
+              ? '<img src="' + src + '" alt="">'
+              : '<span class="cmp-noimg">' + A.esc(A.t('vr.noImage')) + '</span>') +
+          '</div>' +
+          '<p class="cmp-files">' + A.esc(A.t('vr.filesN', { n: (v.fileIds || []).length })) + '</p>' +
+        '</div>';
+      }
+
+      root.innerHTML =
+        '<div class="cmp-bar">' +
+          '<div class="cmp-zoom">' +
+            ['fit', 'actual', 'zoom'].map(function (z) {
+              return '<button type="button" data-zoom="' + z + '" class="' + (zoom === z ? 'is-on' : '') + '">' +
+                A.esc(A.t('vr.zoom.' + z)) + '</button>';
+            }).join('') +
+          '</div>' +
+          '<p class="cmp-hint">' + A.esc(A.t('vr.compareHint')) + '</p>' +
+        '</div>' +
+        '<div class="cmp-grid">' + col(a, 'a') + col(b, 'b') + '</div>';
+
+      /* assignment, not addEventListener: render() re-runs on every switch and
+         a persistent node would otherwise stack duplicate handlers */
+      root.onclick = function (e) {
+        var z = e.target.closest('[data-zoom]');
+        if (!z) return;
+        zoom = z.getAttribute('data-zoom');
+        render();
+      };
+
+      A.qsa('.cmp-select', root).forEach(function (sel) {
+        sel.addEventListener('change', function () {
+          var side = sel.getAttribute('data-side');
+          if (side === 'a') aId = sel.value; else bId = sel.value;
+          if (aId === bId) {
+            /* never compare a version with itself */
+            var other = versions().filter(function (v) { return v.id !== aId; });
+            if (side === 'a') bId = other[other.length - 1].id;
+            else aId = other[0].id;
+          }
+          var url = 'design-compare.html?design=' + d.id + '&a=' + aId + '&b=' + bId;
+          try { history.replaceState(null, '', url); } catch (err) {}
+          render();
+        });
+      });
+    }
+
+    A.page(render);
+  })();
+  </script>
+</body>
+</html>

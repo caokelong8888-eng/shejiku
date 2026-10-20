@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="p.brand.doc">品牌 — Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' fill='none' stroke='%231D1B18' stroke-width='2.5'/><rect x='10' y='10' width='12' height='12' fill='%231D1B18'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="dash" data-page="brand">
+
+  <aside class="dash-side" id="dashSide"></aside>
+  <div class="side-scrim" id="sideScrim"></div>
+
+  <div class="dash-main">
+    <header class="dash-top">
+      <div class="crumb">
+        <button class="menu-btn" id="menuBtn" type="button" aria-label="打开菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <a href="dashboard.html" data-i18n="side.myspace">我的空间</a>
+        <span class="sep">/</span>
+        <span data-i18n="p.brand.title">品牌</span>
+      </div>
+      <div class="top-actions">
+        <div class="lang-switch" role="group" aria-label="语言切换 / Language">
+          <button type="button" data-lang="zh" class="is-on">中文</button>
+          <span class="sep"></span>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="index.html"><span data-i18n="top.viewsite">查看网站</span><span class="arr arr-up"></span></a>
+      </div>
+    </header>
+
+    <main class="page">
+      <div class="page-head" id="brandHead"></div>
+      <div id="brandRoot"></div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/brand.js"></script>
+</body>
+</html>

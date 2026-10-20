@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="p.projects.title">项目 — Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' fill='none' stroke='%231D1B18' stroke-width='2.5'/><rect x='10' y='10' width='12' height='12' fill='%231D1B18'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="dash" data-page="project">
+
+  <aside class="dash-side" id="dashSide"></aside>
+  <div class="side-scrim" id="sideScrim"></div>
+
+  <div class="dash-main">
+    <header class="dash-top">
+      <div class="crumb">
+        <button class="menu-btn" id="menuBtn" type="button" aria-label="打开菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <a href="dashboard.html" data-i18n="side.myspace">我的空间</a>
+        <span class="sep">/</span>
+        <a href="projects.html" data-i18n="p.projects.title">项目</a>
+        <span class="sep">/</span>
+        <span id="crumbName"></span>
+      </div>
+      <div class="top-actions">
+        <div class="lang-switch" role="group" aria-label="语言切换 / Language">
+          <button type="button" data-lang="zh" class="is-on">中文</button>
+          <span class="sep"></span>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="index.html"><span data-i18n="top.viewsite">查看网站</span><span class="arr arr-up"></span></a>
+      </div>
+    </header>
+
+    <main class="page" id="pageRoot"></main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+  (function () {
+    var A = window.StudioApp, S = window.StudioStore;
+    var root = A.qs('#pageRoot');
+    var pid = new URLSearchParams(location.search).get('id');
+
+    /* files are not copied into a project — they are resolved live from the
+       designs' versions, so the section can never drift out of date */
+    function projectFiles(designs) {
+      var out = [];
+      designs.forEach(function (d) {
+        S.filesOfDesign(d.id).concat(S.versionFilesOfDesign(d.id)).forEach(function (f) {
+          if (!out.some(function (x) { return x.id === f.id; })) out.push({ file: f, design: d });
+        });
+      });
+      return out;
+    }
+
+    function render() {
+      var p = S.project(pid);
+      if (!p) {
+        root.innerHTML = '<div class="empty-state"><div class="es-mark"></div>' +
+          '<h2 class="es-title">' + A.esc(A.t('pd.missing')) + '</h2>' +
+          '<p class="es-hint">' + A.esc(A.t('pd.missingHint')) + '</p>' +
+          '<div class="es-btn"><a class="btn" href="projects.html"><span>' + A.esc(A.t('act.back')) + '</span><span class="arr"></span></a></div></div>';
+        return;
+      }
+      var name = S.name(p, A.lang());
+      document.title = name + ' — Studio';
+      var crumb = A.qs('#crumbName');
+      if (crumb) crumb.textContent = name;
+
+      var designs = S.designsByProject(p.id);
+      var relFiles = projectFiles(designs);
+      var strip = designs.slice(0, 6).map(function (d) {
+        return '<a class="pj-cell" href="design.html?id=' + d.id + '&from=project&pid=' + p.id + '">' +
+          '<img src="' + A.img(d.cover) + '" alt="" loading="lazy"></a>';
+      }).join('');
+
+      root.innerHTML =
+        '<a class="detail-back" href="projects.html"><span class="arr"></span><span>' + A.esc(A.t('p.projects.title')) + '</span></a>' +
+        '<div class="pj-head">' +
+          '<div>' +
+            '<p class="info-label pj-label">' + A.esc(A.t('p.projects.title')) + '</p>' +
+            '<h1 class="detail-title" style="margin-top:0">' + A.esc(name) + '</h1>' +
+            '<p class="detail-desc">' + A.esc(S.desc(p, A.lang())) + '</p>' +
+            '<div class="chip-row" id="statusChips">' +
+              Object.keys(S.PSTAT).map(function (k) {
+                return '<button class="chip' + (p.status === k ? ' is-on' : '') + '" data-status="' + k + '" type="button">' +
+                  A.esc(S.projStatusLabel(k, A.lang())) + '</button>';
+              }).join('') +
+            '</div>' +
+            '<div class="detail-actions">' +
+              '<button class="btn btn-sm" id="btnEdit" type="button"><span>' + A.esc(A.t('act.edit')) + '</span></button>' +
+              '<button class="btn btn-ghost btn-sm" id="btnAdd" type="button"><span>' + A.esc(A.t('act.addDesigns')) + '</span><span class="arr"></span></button>' +
+              '<button class="btn btn-ghost btn-sm" id="btnMore" type="button"><span>' + A.esc(A.t('act.more')) + '</span></button>' +
+            '</div>' +
+          '</div>' +
+          '<aside>' +
+            '<div class="pj-strip">' + (strip || '<span class="pj-empty">' + A.esc(A.t('pd.empty')) + '</span>') + '</div>' +
+            '<div class="meta-block">' +
+              '<p class="info-label">' + A.esc(A.t('meta.status')) + '</p>' +
+              '<div style="margin-top:12px"><span class="pill pill--' + p.status + '">' + A.esc(S.projStatusLabel(p.status, A.lang())) + '</span></div>' +
+              '<dl class="meta-rows">' +
+                '<div class="meta-row"><dt>' + A.esc(A.t('meta.count')) + '</dt><dd>' + designs.length + ' ' + A.esc(A.t('unit.designs')) + '</dd></div>' +
+                '<div class="meta-row"><dt>' + A.esc(A.t('meta.created')) + '</dt><dd>' + A.date(p.createdAt) + '</dd></div>' +
+                '<div class="meta-row"><dt>' + A.esc(A.t('meta.updated')) + '</dt><dd>' + A.rel(p.updatedAt) + '</dd></div>' +
+              '</dl>' +
+            '</div>' +
+          '</aside>' +
+        '</div>' +
+
+        '<section class="detail-section">' +
+          '<div class="ds-head">' +
+            '<h2>' + A.esc(A.t('pd.designs')) + '<span class="ds-count">' + designs.length + ' ' + A.esc(A.t('unit.designs')) + '</span></h2>' +
+            '<div class="ds-tools">' +
+              '<button class="btn btn-ghost btn-sm" id="btnAdd2" type="button"><span>' + A.esc(A.t('act.addDesigns')) + '</span><span class="arr"></span></button>' +
+            '</div>' +
+          '</div>' +
+          '<div id="designArea" style="margin-top:26px"></div>' +
+        '</section>' +
+
+        '<section class="detail-section">' +
+          '<div class="ds-head">' +
+            '<h2>' + A.esc(A.t('pd.relatedFiles')) + '<span class="ds-count">' + relFiles.length + '</span></h2>' +
+            '<div class="ds-tools">' +
+              '<a class="btn btn-ghost btn-sm" href="files.html?view=browse"><span>' + A.esc(A.t('pd.openFiles')) + '</span><span class="arr"></span></a>' +
+            '</div>' +
+          '</div>' +
+          (relFiles.length
+            ? '<div class="pj-files">' + relFiles.map(function (x) {
+                return '<a class="pj-file" href="files.html?view=browse&file=' + x.file.id + '">' +
+                  '<span class="pj-file-name">' + A.esc(x.file.name) + '</span>' +
+                  '<span class="pj-file-meta">' + A.esc(S.kindLabel(x.file.kind, A.lang())) + ' · ' +
+                    A.esc(A.prettySize(x.file.size)) + ' · ' + A.esc(A.t('pd.fileFrom', { name: S.name(x.design, A.lang()) })) + '</span>' +
+                  '<span class="arr"></span></a>';
+              }).join('') + '</div>'
+            : '<p class="text-muted-note" style="margin-top:22px">' + A.esc(A.t('pd.noRelatedFiles')) + '</p>') +
+        '</section>';
+
+      var area = A.qs('#designArea');
+      if (!designs.length) {
+        area.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="es-mark"></div>' +
+            '<h2 class="es-title">' + A.esc(A.t('pd.empty')) + '</h2>' +
+            '<p class="es-hint">' + A.esc(A.t('pd.emptyHint')) + '</p>' +
+            '<div class="es-btn"><button class="btn" id="btnEmptyAdd" type="button">' +
+              '<span>' + A.esc(A.t('act.addDesigns')) + '</span><span class="arr"></span></button></div>' +
+          '</div>';
+        A.qs('#btnEmptyAdd').addEventListener('click', addDesigns);
+      } else {
+        var grid = document.createElement('div');
+        grid.className = 'design-grid';
+        designs.forEach(function (d) {
+          grid.appendChild(A.designCard(d, {
+            context: 'project', projectId: p.id, showAssoc: false, onChange: render
+          }));
+        });
+        area.appendChild(grid);
+      }
+
+      /* actions */
+      A.qs('#btnEdit').addEventListener('click', function () {
+        A.openProjectModal({ existing: p, onSaved: function () { render(); } });
+      });
+      A.qs('#btnAdd').addEventListener('click', addDesigns);
+      A.qs('#btnAdd2').addEventListener('click', addDesigns);
+      A.qs('#statusChips').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-status]');
+        if (!b) return;
+        S.updateProject(p.id, { status: b.getAttribute('data-status') });
+        A.toast(A.t('t.saved'));
+        render();
+      });
+      A.qs('#btnMore').addEventListener('click', function (e) {
+        e.stopPropagation();
+        A.menu(e.currentTarget, [
+          { label: A.t('act.delete'), danger: true, onClick: function () {
+              A.confirm({
+                title: A.t('cf.deleteProject'), hint: A.t('cf.deleteProjectHint'),
+                confirmLabel: A.t('act.delete'), danger: true,
+                onConfirm: function () { S.deleteProject(p.id); A.toast(A.t('t.deleted')); location.href = 'projects.html'; }
+              });
+            } }
+        ]);
+      });
+    }
+
+    function addDesigns() {
+      var p = S.project(pid);
+      if (!p) return;
+      A.pickDesigns({
+        title: A.t('pd.pickTitle'),
+        exclude: p.designIds,
+        onDone: function (ids) {
+          if (!ids.length) return;
+          var n = S.addDesignsToProject(p.id, ids);
+          if (n) A.toast(A.t('t.addedDesigns', { n: n }));
+          render();
+        }
+      });
+    }
+
+    A.page(render);
+  })();
+  </script>
+</body>
+</html>

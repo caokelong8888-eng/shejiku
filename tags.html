@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="p.tags.doc">标签 — Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' fill='none' stroke='%231D1B18' stroke-width='2.5'/><rect x='10' y='10' width='12' height='12' fill='%231D1B18'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="dash" data-page="tags">
+
+  <aside class="dash-side" id="dashSide"></aside>
+  <div class="side-scrim" id="sideScrim"></div>
+
+  <div class="dash-main">
+    <header class="dash-top">
+      <div class="crumb">
+        <button class="menu-btn" id="menuBtn" type="button" aria-label="打开菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <a href="dashboard.html" data-i18n="side.myspace">我的空间</a>
+        <span class="sep">/</span>
+        <span data-i18n="p.tags.title">标签</span>
+      </div>
+      <div class="top-actions">
+        <div class="lang-switch" role="group" aria-label="语言切换 / Language">
+          <button type="button" data-lang="zh" class="is-on">中文</button>
+          <span class="sep"></span>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="library.html"><span data-i18n="p.library.title">设计库</span><span class="arr"></span></a>
+      </div>
+    </header>
+
+    <main class="page" id="pageRoot"></main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+  (function () {
+    var A = window.StudioApp, S = window.StudioStore;
+    var root = A.qs('#pageRoot');
+    var params = new URLSearchParams(location.search);
+
+    var sel = { kind: 'tag', id: params.get('tag') || null };
+    var q = '';
+    var sortMode = 'name';
+    var booted = false;
+    function tname(tg) { return S.tagLabel(tg, A.lang()); }
+
+    /* ---------------- skeleton ---------------- */
+    function build() {
+      root.innerHTML =
+        '<div class="page-head">' +
+          '<div>' +
+            '<h1 data-i18n="p.tags.title">标签</h1>' +
+            '<p class="ph-sub" data-i18n="p.tags.sub">用标签描述作品的特征，用分类维持稳定的结构。</p>' +
+          '</div>' +
+          '<div class="ph-actions">' +
+            '<button class="btn btn-sm" id="tgNew" type="button"><span data-i18n="tg.new"></span><span class="arr"></span></button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="tg-stats" id="tgStats"></div>' +
+        '<div class="tags-layout">' +
+          '<aside class="tags-side">' +
+            '<div class="tags-side-tools">' +
+              '<input class="input" id="tgSearch" type="search" placeholder="搜索标签…" data-i18n-ph="tg.searchPh">' +
+              '<select class="select" id="tgSort">' +
+                '<option value="name" data-i18n="tg.sort.name">按名称</option>' +
+                '<option value="count" data-i18n="tg.sort.count">按使用数量</option>' +
+              '</select>' +
+            '</div>' +
+            '<nav class="tg-list" id="tgList"></nav>' +
+          '</aside>' +
+          '<section class="tags-main" id="tgDetail"></section>' +
+        '</div>' +
+        '<section class="tx-block" id="txBlock"></section>';
+
+      A.qs('#tgNew').addEventListener('click', openNewTag);
+      A.qs('#tgSearch').addEventListener('input', function (e) {
+        q = e.target.value.trim();
+        drawList();
+      });
+      A.qs('#tgSort').addEventListener('change', function (e) {
+        sortMode = e.target.value;
+        drawList();
+      });
+      A.qs('#txBlock').addEventListener('click', function (e) {
+        var add = e.target.closest('[data-add]');
+        if (add) { openTaxOption(add.getAttribute('data-add'), null); return; }
+        var opt = e.target.closest('.tx-opt');
+        if (opt) openTaxOption(opt.getAttribute('data-dim'), opt.getAttribute('data-key'));
+      });
+      A.qs('#tgList').addEventListener('click', function (e) {
+        var item = e.target.closest('[data-kind]');
+        if (!item) return;
+        var kind = item.getAttribute('data-kind');
+        var id = item.getAttribute('data-id') || null;
+        if (kind === 'untagged') { sel = { kind: 'untagged', id: null }; }
+        else { sel = { kind: 'tag', id: id }; }
+        drawList();
+        drawDetail();
+        A.enter();
+      });
+    }
+
+    /* ---------------- stats ---------------- */
+    function drawStats() {
+      var st = S.tagStats();
+      var untagged = S.untaggedDesigns(false).length;
+      var cells = [
+        [st.total, A.t('tg.stat.total')],
+        [st.used, A.t('tg.stat.used')],
+        [st.unused, A.t('tg.stat.unused')],
+        [untagged, A.t('tg.stat.untagged')]
+      ];
+      A.qs('#tgStats').innerHTML = cells.map(function (c) {
+        return '<div class="tg-stat" data-enter><p class="tg-stat-n">' + c[0] + '</p>' +
+          '<p class="tg-stat-l">' + A.esc(c[1]) + '</p></div>';
+      }).join('');
+    }
+
+    /* ---------------- tag list ---------------- */
+    function tagRows() {
+      var list = S.tags().map(function (t) {
+        return { tag: t, n: S.tagUsage(t.id) };
+      });
+      if (q) {
+        var lower = q.toLowerCase();
+        list = list.filter(function (x) {
+          return x.tag.name.toLowerCase().indexOf(lower) !== -1 ||
+                 (x.tag.nameEn || '').toLowerCase().indexOf(lower) !== -1;
+        });
+      }
+      if (sortMode === 'count') {
+        list.sort(function (a, b) { return b.n - a.n || a.tag.name.localeCompare(b.tag.name, 'zh'); });
+      } else {
+        list.sort(function (a, b) { return a.tag.name.localeCompare(b.tag.name, 'zh'); });
+      }
+      return list;
+    }
+
+    function drawList() {
+      var rows = tagRows();
+      var untagged = S.untaggedDesigns(false).length;
+      var html = '<button class="tg-item' + (sel.kind === 'untagged' ? ' is-on' : '') + '" type="button" data-kind="untagged">' +
+        '<span class="tg-item-name">' + A.esc(A.t('tg.untagged')) + '</span>' +
+        '<span class="tg-item-n">' + untagged + '</span></button>' +
+        '<div class="tg-sep"></div>';
+
+      if (!rows.length) {
+        html += '<p class="tg-list-empty">' + A.esc(q ? A.t('tg.empty.search') : A.t('tg.empty.title')) + '</p>';
+      } else {
+        html += rows.map(function (x) {
+          return '<button class="tg-item' + (sel.kind === 'tag' && sel.id === x.tag.id ? ' is-on' : '') + '" ' +
+            'type="button" data-kind="tag" data-id="' + x.tag.id + '">' +
+            '<span class="tg-item-name">' + A.esc(tname(x.tag)) + '</span>' +
+            '<span class="tg-item-n' + (x.n ? '' : ' is-zero') + '">' + x.n + '</span></button>';
+        }).join('');
+      }
+      A.qs('#tgList').innerHTML = html;
+
+      /* keep a valid selection */
+      if (sel.kind === 'tag' && (!sel.id || !S.tag(sel.id))) {
+        sel = rows.length ? { kind: 'tag', id: rows[0].tag.id } : { kind: 'untagged', id: null };
+      }
+    }
+
+    /* ---------------- detail ---------------- */
+    function drawDetail() {
+      var el = A.qs('#tgDetail');
+      if (sel.kind === 'untagged') { drawUntagged(el); return; }
+      var t = sel.id ? S.tag(sel.id) : null;
+      if (!t) {
+        el.innerHTML = '<div class="empty-state">' +
+          '<div class="es-mark"></div>' +
+          '<h2 class="es-title">' + A.esc(A.t('tg.empty.title')) + '</h2>' +
+          '<p class="es-hint">' + A.esc(A.t('tg.empty.hint')) + '</p>' +
+          '<div class="es-btn"><button class="btn" type="button" id="tgEmptyNew"><span>' +
+          A.esc(A.t('tg.new')) + '</span><span class="arr"></span></button></div></div>';
+        var b = A.qs('#tgEmptyNew');
+        if (b) b.addEventListener('click', openNewTag);
+        return;
+      }
+
+      var designs = S.designsByTag(t.id);
+      var n = S.tagUsage(t.id);
+      el.innerHTML =
+        '<div class="tg-detail-head">' +
+          '<div>' +
+            '<p class="label">' + A.esc(A.t('tg.detail')) + '</p>' +
+            '<h2 class="tg-detail-name">' + A.esc(tname(t)) + '</h2>' +
+            '<p class="tg-detail-meta">' + A.esc(A.t('tg.usageN', { n: n })) +
+              ' · ' + A.esc(A.t('tg.created')) + ' ' + A.date(t.createdAt) + '</p>' +
+          '</div>' +
+          '<div class="tg-detail-acts">' +
+            '<button class="btn btn-ghost btn-sm" id="tgRename" type="button"><span>' + A.esc(A.t('tg.rename')) + '</span></button>' +
+            '<button class="btn btn-ghost btn-sm" id="tgMerge" type="button"><span>' + A.esc(A.t('tg.merge')) + '</span></button>' +
+            '<a class="btn btn-ghost btn-sm" href="library.html?tag=' + t.id + '"><span>' + A.esc(A.t('tg.openLibrary')) + '</span><span class="arr"></span></a>' +
+          '</div>' +
+        '</div>' +
+        (designs.length
+          ? '<div class="design-grid tg-grid" id="tgGrid"></div>' +
+            '<div class="tg-danger"><div><p class="tg-danger-t">' + A.esc(A.t('tg.delete')) + '</p>' +
+            '<p class="tg-danger-h">' + A.esc(A.t('tg.deleteHint', { name: tname(t), n: n })) + '</p></div>' +
+            '<button class="link-btn is-danger" id="tgDelete" type="button">' + A.esc(A.t('tg.delete')) + '</button></div>'
+          : '<div class="feat-empty tg-empty"><p class="fe-title">' + A.esc(A.t('tg.emptyTag')) + '</p>' +
+            '<p class="fe-hint">' + A.esc(A.t('tg.deleteEmptyHint')) + '</p>' +
+            '<button class="btn btn-ghost btn-sm fe-btn" id="tgDelete" type="button"><span>' + A.esc(A.t('tg.delete')) + '</span></button></div>');
+
+      var grid = A.qs('#tgGrid');
+      if (grid) {
+        designs.forEach(function (d) {
+          grid.appendChild(A.designCard(d, { context: 'library' }));
+        });
+      }
+      A.qs('#tgRename').addEventListener('click', function () { openRename(t); });
+      A.qs('#tgMerge').addEventListener('click', function () { openMerge(t); });
+      if (A.qs('#tgDelete')) A.qs('#tgDelete').addEventListener('click', function () { confirmDelete(t); });
+    }
+
+    function drawUntagged(el) {
+      var list = S.untaggedDesigns(false);
+      el.innerHTML =
+        '<div class="tg-detail-head">' +
+          '<div>' +
+            '<p class="label">' + A.esc(A.t('tg.detail')) + '</p>' +
+            '<h2 class="tg-detail-name">' + A.esc(A.t('tg.untagged.title')) + '</h2>' +
+            '<p class="tg-detail-meta">' + A.esc(A.t('tg.untagged.hint')) + '</p>' +
+          '</div>' +
+          (list.length
+            ? '<div class="tg-detail-acts"><button class="btn btn-sm" id="tgBulkAdd" type="button"><span>' +
+              A.esc(A.t('pt.titleAdd')) + '</span><span class="arr"></span></button></div>'
+            : '') +
+        '</div>' +
+        (list.length
+          ? '<div class="design-grid tg-grid" id="tgGrid"></div>'
+          : '<div class="feat-empty tg-empty"><p class="fe-title">' + A.esc(A.t('tg.untagged.none')) + '</p>' +
+            '<p class="fe-hint">' + A.esc(A.t('tg.untagged.noneHint')) + '</p></div>');
+
+      var grid = A.qs('#tgGrid');
+      if (grid) list.forEach(function (d) { grid.appendChild(A.designCard(d, { context: 'library' })); });
+
+      if (list.length) {
+        A.qs('#tgBulkAdd').addEventListener('click', function () {
+          A.pickTags({
+            mode: 'add', designIds: list.map(function (d) { return d.id; }),
+            onDone: function () { drawStats(); drawList(); drawDetail(); }
+          });
+        });
+      }
+    }
+
+    /* ---------------- actions ---------------- */
+    function openNewTag() {
+      var body = document.createElement('div');
+      body.innerHTML =
+        '<div class="field"><label class="field-label">' + A.esc(A.t('tg.newPh')) + '</label>' +
+        '<input class="input" id="tgName" type="text" placeholder="' + A.esc(A.t('tg.newPh')) + '" maxlength="40"></div>' +
+        '<p class="m-hint">' + A.esc(A.t('tg.newHint')) + '</p>';
+      var m = A.modal({
+        title: A.t('tg.new'), body: body, size: 'sm',
+        footer: [
+          { label: A.t('act.cancel'), onClick: function (c) { c(); } },
+          { label: A.t('act.create'), primary: true, onClick: function (c) {
+            var input = A.qs('#tgName', body);
+            var v = input.value.trim();
+            if (!v) { A.toast(A.t('pt.tagEmpty')); input.focus(); return; }
+            var res = S.createTag(v);
+            if (!res.ok) { A.toast(A.t('pt.tagEmpty')); return; }
+            c();
+            sel = { kind: 'tag', id: res.tag.id };
+            A.toast(res.existed ? A.t('tg.exists') : A.t('tg.createdToast'));
+            drawStats(); drawList(); drawDetail(); A.enter();
+          } }
+        ]
+      });
+      var input = A.qs('#tgName', body);
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          var btn = A.qs('.modal-foot .btn:not(.btn-ghost)');
+          if (btn) btn.click();
+        }
+      });
+      return m;
+    }
+
+    function openRename(t) {
+      var body = document.createElement('div');
+      body.innerHTML =
+        '<div class="field"><label class="field-label">' + A.esc(A.t('tg.rename')) + '</label>' +
+        '<input class="input" id="tgRName" type="text" value="' + A.esc(t.name) + '" maxlength="40"></div>' +
+        '<p class="m-hint">' + A.esc(A.t('tg.newHint')) + '</p>';
+      A.modal({
+        title: A.t('tg.rename'), body: body, size: 'sm',
+        footer: [
+          { label: A.t('act.cancel'), onClick: function (c) { c(); } },
+          { label: A.t('de.save'), primary: true, onClick: function (c) {
+            var v = A.qs('#tgRName', body).value.trim();
+            if (!v) { A.toast(A.t('pt.tagEmpty')); return; }
+            var res = S.renameTag(t.id, v);
+            if (!res.ok) { A.toast(A.t('tg.dup')); return; }
+            c();
+            A.toast(A.t('tg.renamed'));
+            drawList(); drawDetail();
+          } }
+        ]
+      });
+    }
+
+    function openMerge(t) {
+      var others = S.tags().filter(function (x) { return x.id !== t.id; });
+      var body = document.createElement('div');
+      body.innerHTML =
+        '<p class="pt-hint">' + A.esc(A.t('tg.mergeHint', { name: tname(t), n: S.tagUsage(t.id) })) + '</p>' +
+        (others.length
+          ? '<div class="pick-search"><input class="input" type="search" placeholder="' + A.esc(A.t('pt.search')) + '"></div>' +
+            '<div class="pick-list pt-list">' + others.map(function (x) {
+              return '<label class="pick-row" data-id="' + x.id + '" data-name="' + A.esc((x.name + ' ' + (x.nameEn || '')).toLowerCase()) + '">' +
+                '<input type="radio" name="mergeTo" value="' + x.id + '">' +
+                '<span class="pick-thumb pt-thumb">' + A.esc(tname(x).slice(0, 1)) + '</span>' +
+                '<span class="pick-text"><span class="pick-name">' + A.esc(x.name) + '</span>' +
+                '<span class="pick-sub">' + S.tagUsage(x.id) + ' ' + A.esc(A.t('pt.have')) + '</span></span></label>';
+            }).join('') + '</div>'
+          : '<p class="pick-empty">' + A.esc(A.t('tg.mergeNone')) + '</p>');
+
+      var search = A.qs('input[type="search"]', body);
+      if (search) {
+        search.addEventListener('input', function () {
+          var v = search.value.trim().toLowerCase();
+          A.qsa('.pick-row', body).forEach(function (r) {
+            r.style.display = !v || r.getAttribute('data-name').indexOf(v) !== -1 ? '' : 'none';
+          });
+        });
+      }
+      var footer = [{ label: A.t('act.cancel'), onClick: function (c) { c(); } }];
+      if (others.length) {
+        footer.push({ label: A.t('tg.mergeConfirm'), primary: true, onClick: function (c) {
+          var picked = A.qs('.pick-row input:checked', body);
+          if (!picked) { A.toast(A.t('pt.pickOne')); return; }
+          var res = S.mergeTags(t.id, picked.value);
+          c();
+          if (!res.ok) { A.toast(A.t('tg.dup')); return; }
+          A.toast(A.t('tg.merged', { n: res.moved }));
+          sel = { kind: 'tag', id: res.tag.id };
+          drawStats(); drawList(); drawDetail();
+        } });
+      }
+      A.modal({ title: A.t('tg.mergeTitle'), body: body, size: 'sm', footer: footer });
+    }
+
+    function confirmDelete(t) {
+      var n = S.tagUsage(t.id);
+      A.confirm({
+        title: A.t('tg.deleteTitle'),
+        hint: n ? A.t('tg.deleteHint', { name: t.name, n: n }) : A.t('tg.deleteEmptyHint'),
+        confirmLabel: A.t('tg.delete'), danger: true,
+        onConfirm: function () {
+          var res = S.deleteTag(t.id);
+          A.toast(A.t('tg.deleted'));
+          sel = { kind: 'tag', id: null };
+          drawStats(); drawList(); drawDetail(); A.enter();
+        }
+      });
+    }
+
+    /* ---------------- classification dimensions ---------------- */
+    function drawDims() {
+      var block = A.qs('#txBlock');
+      var dims = S.dimensions();
+      block.innerHTML =
+        '<div class="tx-head">' +
+          '<div><h2>' + A.esc(A.t('tx.title')) + '</h2>' +
+          '<p>' + A.esc(A.t('tx.sub')) + '</p></div>' +
+        '</div>' +
+        '<div class="tx-dims">' + dims.map(function (d) {
+          var opts = S.taxOptions(d.key);
+          return '<div class="tx-dim" data-dim="' + d.key + '">' +
+            '<div class="tx-dim-head">' +
+              '<h3>' + A.esc(A.t(d.label)) + '</h3>' +
+              '<span>' + A.esc(A.t('tx.options', { n: opts.length })) + '</span>' +
+            '</div>' +
+            '<div class="tx-opts">' +
+              opts.map(function (o) {
+                var used = S.taxOptionUsage(d.key, o.key);
+                return '<button class="tx-opt" type="button" data-dim="' + d.key + '" data-key="' + o.key + '">' +
+                  A.esc(A.lang() === 'en' ? (o.en || o.zh) : o.zh) +
+                  '<i>' + used + '</i></button>';
+              }).join('') +
+              '<button class="tx-add" type="button" data-add="' + d.key + '">＋ ' + A.esc(A.t('tx.add')) + '</button>' +
+            '</div></div>';
+        }).join('') + '</div>';
+    }
+
+    function openTaxOption(dim, key) {
+      var isNew = !key;
+      var cur = null;
+      if (!isNew) {
+        S.taxOptions(dim).forEach(function (o) { if (o.key === key) cur = o; });
+        if (!cur) return;
+      }
+      var used = isNew ? 0 : S.taxOptionUsage(dim, key);
+      var body = document.createElement('div');
+      body.innerHTML =
+        '<div class="field"><label class="field-label">' + A.esc(A.t('tx.namePh')) + '</label>' +
+        '<input class="input" id="txZh" type="text" maxlength="24" value="' + A.esc(cur ? cur.zh : '') + '"></div>' +
+        '<div class="field"><label class="field-label">' + A.esc(A.t('tx.enPh')) + '</label>' +
+        '<input class="input" id="txEn" type="text" maxlength="32" value="' + A.esc(cur ? (cur.en || '') : '') + '"></div>' +
+        (isNew ? '' : '<p class="m-hint">' + A.esc(A.t('tx.inUse', { n: used })) + '</p>');
+
+      var footer = [{ label: A.t('act.cancel'), onClick: function (c) { c(); } }];
+      footer.push({ label: A.t('tx.save'), primary: true, onClick: function (c) {
+        var zh = A.qs('#txZh', body).value.trim();
+        var en = A.qs('#txEn', body).value.trim();
+        if (!zh) { A.toast(A.t('pt.tagEmpty')); return; }
+        var res = isNew ? S.addTaxOption(dim, { zh: zh, en: en }) : S.renameTaxOption(dim, key, { zh: zh, en: en });
+        if (!res.ok) { A.toast(A.t('tg.dup')); return; }
+        c();
+        A.toast(isNew ? A.t('tx.added') : A.t('tx.renamed'));
+        drawDims(); drawDetail();
+      } });
+
+      var m = A.modal({ title: isNew ? A.t('tx.addTitle') : A.t('tx.renameTitle'), body: body, size: 'sm', footer: footer });
+
+      if (!isNew) {
+        var foot = A.qs('.modal-foot', document);
+        var del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'btn btn-sm btn-ghost is-danger';
+        del.textContent = A.t('tx.delete');
+        del.addEventListener('click', function () {
+          if (used) { A.toast(A.t('tx.deleteBlocked')); return; }
+          var res = S.deleteTaxOption(dim, key);
+          if (!res.ok) { A.toast(A.t('tx.deleteBlocked')); return; }
+          A.closeModal();
+          A.toast(A.t('tx.deleted'));
+          drawDims(); drawDetail();
+        });
+        if (used) { del.disabled = true; del.title = A.t('tx.deleteBlocked'); }
+        foot.insertBefore(del, foot.firstChild);
+      }
+      return m;
+    }
+
+    /* ---------------- entry ---------------- */
+    function render() {
+      if (!booted) { booted = true; build(); }
+      else if (!A.qs('#tgList')) { build(); }
+      drawStats();
+      drawList();
+      drawDetail();
+      drawDims();
+      A.enter();
+    }
+
+    A.page(render);
+  })();
+  </script>
+</body>
+</html>

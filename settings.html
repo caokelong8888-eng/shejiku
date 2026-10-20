@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="set.doc">设置 — Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' fill='none' stroke='%231D1B18' stroke-width='2.5'/><rect x='10' y='10' width='12' height='12' fill='%231D1B18'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="dash" data-page="settings">
+
+  <aside class="dash-side" id="dashSide"></aside>
+  <div class="side-scrim" id="sideScrim"></div>
+
+  <div class="dash-main">
+    <header class="dash-top">
+      <div class="crumb">
+        <button class="menu-btn" id="menuBtn" type="button" aria-label="打开菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <a href="dashboard.html" data-i18n="side.myspace">我的空间</a>
+        <span class="sep">/</span>
+        <span data-i18n="set.title">设置</span>
+      </div>
+      <div class="top-actions">
+        <div class="lang-switch" role="group" aria-label="语言切换 / Language">
+          <button type="button" data-lang="zh" class="is-on">中文</button>
+          <span class="sep"></span>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="page" id="setRoot"></main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+  (function () {
+    var A = window.StudioApp, S = window.StudioStore;
+    var root = A.qs('#setRoot');
+    var tab = new URLSearchParams(location.search).get('tab') || 'account';
+    var busy = false;
+
+    function pct(a, b) { return Math.max(0, Math.min(100, Math.round(a / b * 100))); }
+
+    function tabsHTML() {
+      var items = [['account', 'set.tabAccount'], ['workspace', 'set.tabWorkspace'], ['plan', 'set.tabPlan']];
+      return '<div class="set-tabs">' + items.map(function (x) {
+        return '<button type="button" data-tab="' + x[0] + '" class="' + (tab === x[0] ? 'is-on' : '') + '">' +
+          A.esc(A.t(x[1])) + '</button>';
+      }).join('') + '</div>';
+    }
+
+    /* ---------------- account ---------------- */
+    function accountHTML() {
+      var u = S.user() || {};
+      return '<section class="set-block">' +
+          '<h2 class="set-h2">' + A.esc(A.t('set.profile')) + '</h2>' +
+          '<div class="field"><label class="field-label">' + A.esc(A.t('auth.name')) + '</label>' +
+            '<input class="input" id="setName" type="text" maxlength="40" value="' + A.esc(u.name || '') + '"></div>' +
+          '<div class="field"><label class="field-label">' + A.esc(A.t('auth.email')) + '</label>' +
+            '<input class="input" id="setEmail" type="email" value="' + A.esc(u.email || '') + '"></div>' +
+          '<div class="set-acts"><button class="btn btn-sm" type="button" id="saveProfile"><span>' +
+            A.esc(A.t('act.save')) + '</span></button></div>' +
+        '</section>' +
+
+        '<section class="set-block">' +
+          '<h2 class="set-h2">' + A.esc(A.t('set.password')) + '</h2>' +
+          '<div class="field"><label class="field-label">' + A.esc(A.t('set.currentPass')) + '</label>' +
+            '<input class="input" id="curPass" type="password" autocomplete="current-password"></div>' +
+          '<div class="field"><label class="field-label">' + A.esc(A.t('set.newPass')) + '</label>' +
+            '<input class="input" id="newPass" type="password" autocomplete="new-password" placeholder="' + A.esc(A.t('auth.passPh')) + '"></div>' +
+          '<div class="set-acts"><button class="btn btn-ghost btn-sm" type="button" id="savePass"><span>' +
+            A.esc(A.t('set.changePass')) + '</span></button></div>' +
+          '<p class="m-hint">' + A.esc(A.t('auth.forgotUnsupported')) + '</p>' +
+        '</section>' +
+
+        '<section class="set-block">' +
+          '<h2 class="set-h2">' + A.esc(A.t('set.session')) + '</h2>' +
+          '<p class="set-note">' + A.esc(A.t('set.sessionNote', { email: u.email || '' })) + '</p>' +
+          '<div class="set-acts"><button class="btn btn-ghost btn-sm" type="button" id="btnLogout"><span>' +
+            A.esc(A.t('act.logout')) + '</span></button></div>' +
+        '</section>' +
+
+        legacyHTML();
+    }
+
+    /* phases 1–10 kept data in this browser — offer to carry it over once */
+    function legacyHTML() {
+      var legacy = S.legacyState();
+      if (!legacy) return '';
+      var n = (legacy.designs || []).filter(function (d) { return !d.deletedAt; }).length;
+      if (!n) return '';
+      return '<section class="set-block">' +
+          '<h2 class="set-h2">' + A.esc(A.t('set.legacy')) + '</h2>' +
+          '<p class="set-note">' + A.esc(A.t('set.legacyNote', { n: n })) + '</p>' +
+          '<div class="set-acts">' +
+            '<button class="btn btn-sm" type="button" id="btnImport"><span>' + A.esc(A.t('set.import')) + '</span><span class="arr"></span></button>' +
+            '<button class="link-btn" type="button" id="btnDropLegacy">' + A.esc(A.t('set.dropLegacy')) + '</button>' +
+          '</div>' +
+        '</section>';
+    }
+
+    /* ---------------- workspace ---------------- */
+    function workspaceHTML() {
+      var list = S.workspaceInfo();
+      var w = S.workspace || {};
+      return '<section class="set-block">' +
+          '<h2 class="set-h2">' + A.esc(A.t('set.currentWs')) + '</h2>' +
+          '<div class="field"><label class="field-label">' + A.esc(A.t('ws.name')) + '</label>' +
+            '<input class="input" id="wsName" type="text" maxlength="60" value="' + A.esc(w.name || '') + '"></div>' +
+          '<div class="field"><label class="field-label">' + A.esc(A.t('set.wsDesc')) + '</label>' +
+            '<textarea class="textarea" id="wsDesc" rows="2">' + A.esc(w.description || '') + '</textarea></div>' +
+          '<div class="set-acts"><button class="btn btn-sm" type="button" id="saveWs"><span>' +
+            A.esc(A.t('act.save')) + '</span></button></div>' +
+        '</section>' +
+
+        '<section class="set-block">' +
+          '<div class="set-head-row"><h2 class="set-h2">' + A.esc(A.t('set.allWs')) + '</h2>' +
+            '<button class="link-btn" type="button" id="btnNewWs">＋ ' + A.esc(A.t('ws.create')) + '</button></div>' +
+          '<div class="ws-list">' + list.map(function (x) {
+            return '<div class="ws-row' + (x.active ? ' is-on' : '') + '">' +
+              '<div><p class="ws-row-name">' + A.esc(x.name) + (x.active ? ' · ' + A.esc(A.t('set.active')) : '') + '</p>' +
+                '<p class="ws-row-sub">' + A.esc((x.plan && x.plan.name) || '') +
+                  ' · ' + A.esc(A.t('set.wsDesigns', { n: (x.usage && x.usage.designs) || 0 })) + '</p></div>' +
+              (x.active ? '' : '<button class="btn btn-ghost btn-sm" type="button" data-switch="' + x.id + '"><span>' +
+                A.esc(A.t('set.switch')) + '</span></button>') +
+            '</div>';
+          }).join('') + '</div>' +
+        '</section>' +
+
+        '<section class="set-block is-danger">' +
+          '<h2 class="set-h2">' + A.esc(A.t('set.danger')) + '</h2>' +
+          '<p class="set-note">' + A.esc(A.t('set.dangerNote')) + '</p>' +
+          '<div class="set-acts"><button class="btn btn-ghost btn-sm is-danger" type="button" id="btnDelWs"><span>' +
+            A.esc(A.t('set.deleteWs')) + '</span></button></div>' +
+        '</section>';
+    }
+
+    /* ---------------- plan & usage ---------------- */
+    function planHTML() {
+      var p = S.planSummary();
+      if (!p) return '<p class="text-muted-note">' + A.esc(A.t('err.generic')) + '</p>';
+      var u = p.usage, lim = p.limits;
+      var sub = S.subscription() || {};
+      var bar = function (used, limit, label) {
+        return '<div class="use-row">' +
+          '<div class="use-head"><span>' + A.esc(label) + '</span><b>' + used + ' / ' + limit + '</b></div>' +
+          '<div class="use-bar"><i style="width:' + pct(used, limit) + '%"></i></div></div>';
+      };
+      return '<section class="set-block">' +
+          '<div class="set-head-row"><h2 class="set-h2">' + A.esc(A.t('set.plan')) + '</h2>' +
+            '<span class="pill pill--sm pill--done">' + A.esc(p.plan.name) + '</span></div>' +
+          '<p class="set-note">' + A.esc(p.plan.tagline) + '</p>' +
+          '<dl class="meta-rows">' +
+            '<div class="meta-row"><dt>' + A.esc(A.t('set.subStatus')) + '</dt><dd>' + A.esc(sub.status || '—') + '</dd></div>' +
+            '<div class="meta-row"><dt>' + A.esc(A.t('set.subStart')) + '</dt><dd>' + A.date(sub.startedAt) + '</dd></div>' +
+            '<div class="meta-row"><dt>' + A.esc(A.t('set.subPeriod')) + '</dt><dd>' +
+              A.date(sub.currentPeriodStart) + ' – ' + (sub.currentPeriodEnd ? A.date(sub.currentPeriodEnd) : '—') + '</dd></div>' +
+          '</dl>' +
+          '<div class="set-acts"><button class="btn btn-sm" type="button" id="btnChangePlan"><span>' +
+            A.esc(A.t('plan.change')) + '</span><span class="arr"></span></button>' +
+            '<a class="link-btn" href="pricing.html">' + A.esc(A.t('plan.compare')) + '</a></div>' +
+          (p.anyOverLimit ? '<p class="set-warn">' + A.esc(A.t('plan.overHint')) + '</p>' : '') +
+        '</section>' +
+
+        '<section class="set-block">' +
+          '<h2 class="set-h2">' + A.esc(A.t('set.usage')) + '</h2>' +
+          '<div class="use-list">' +
+            bar(u.designs, lim.designs, A.t('use.designs')) +
+            bar(u.files, '—', A.t('use.files')) +
+            bar((u.storageBytes / 1048576).toFixed(2) + ' MB', (lim.storageBytes / 1048576).toFixed(0) + ' MB', A.t('use.storage')) +
+            bar(u.workspaces, lim.workspaces, A.t('use.workspaces')) +
+          '</div>' +
+          '<p class="m-hint">' + A.esc(A.t('use.storageNote')) + '</p>' +
+        '</section>' +
+
+        '<section class="set-block">' +
+          '<h2 class="set-h2">' + A.esc(A.t('set.entitlements')) + '</h2>' +
+          '<div class="ent-list">' +
+            '<div class="ent-row"><span>' + A.esc(A.t('use.versions')) + '</span><b>' + lim.versionsPerDesign + '</b></div>' +
+            '<div class="ent-row"><span>' + A.esc(A.t('use.website')) + '</span><b>' +
+              (lim.website ? A.esc(A.t('set.on')) : A.esc(A.t('set.off'))) + '</b></div>' +
+          '</div>' +
+        '</section>';
+    }
+
+    function render() {
+      root.innerHTML =
+        '<div class="page-head"><div><h1 data-i18n="set.title">设置</h1>' +
+          '<p class="ph-sub" data-i18n="set.sub">账户、工作区与套餐。</p></div></div>' +
+        tabsHTML() +
+        '<div class="set-body">' +
+          (tab === 'account' ? accountHTML() : tab === 'workspace' ? workspaceHTML() : planHTML()) +
+        '</div>';
+      A.qsa('.set-tabs button', root).forEach(function (b) {
+        b.addEventListener('click', function () {
+          tab = b.getAttribute('data-tab');
+          try { history.replaceState(null, '', 'settings.html?tab=' + tab); } catch (e) {}
+          render();
+          A.enter();
+        });
+      });
+      bind();
+      A.enter();
+    }
+
+    function guard(fn) {
+      if (busy) return;
+      busy = true;
+      Promise.resolve().then(fn).catch(function (e) {
+        A.toast(e && e.message || A.t('err.generic'), { error: true });
+      }).then(function () { busy = false; });
+    }
+
+    function bind() {
+      if (tab === 'account') {
+        var sp = A.qs('#saveProfile');
+        if (sp) sp.addEventListener('click', function () {
+          guard(function () {
+            return StudioApi.saveAccount({
+              name: A.qs('#setName').value.trim(),
+              email: A.qs('#setEmail').value.trim()
+            }).then(function () { A.toast(A.t('t.saved')); });
+          });
+        });
+        var sp2 = A.qs('#savePass');
+        if (sp2) sp2.addEventListener('click', function () {
+          guard(function () {
+            return StudioApi.setPassword(A.qs('#curPass').value, A.qs('#newPass').value)
+              .then(function () { A.qs('#curPass').value = ''; A.qs('#newPass').value = ''; A.toast(A.t('set.passChanged')); });
+          });
+        });
+        var lo = A.qs('#btnLogout');
+        if (lo) lo.addEventListener('click', function () {
+          A.confirm({
+            title: A.t('cf.logout'), hint: A.t('cf.logoutHint'), confirmLabel: A.t('act.logout'),
+            onConfirm: function () {
+              S.logout().then(function () { location.href = 'login.html'; },
+                function () { location.href = 'login.html'; });
+            }
+          });
+        });
+        var imp = A.qs('#btnImport');
+        if (imp) imp.addEventListener('click', function () {
+          A.confirm({
+            title: A.t('set.import'), hint: A.t('set.importHint'), confirmLabel: A.t('set.import'),
+            onConfirm: function () {
+              guard(function () {
+                return S.importLegacy().then(function (res) {
+                  S.clearLegacy();
+                  A.toast(A.t('set.imported', { n: res.imported }));
+                  render();
+                });
+              });
+            }
+          });
+        });
+        var drop = A.qs('#btnDropLegacy');
+        if (drop) drop.addEventListener('click', function () {
+          A.confirm({
+            title: A.t('set.dropLegacy'), hint: A.t('set.dropLegacyHint'),
+            confirmLabel: A.t('set.dropLegacy'), danger: true,
+            onConfirm: function () { S.clearLegacy(); A.toast(A.t('t.removed')); render(); }
+          });
+        });
+      }
+
+      if (tab === 'workspace') {
+        var sw = A.qs('#saveWs');
+        if (sw) sw.addEventListener('click', function () {
+          guard(function () {
+            return S.updateWorkspace(S.workspace.id, {
+              name: A.qs('#wsName').value.trim(),
+              description: A.qs('#wsDesc').value.trim()
+            }).then(function () { A.toast(A.t('t.saved')); render(); });
+          });
+        });
+        var nw = A.qs('#btnNewWs');
+        if (nw) nw.addEventListener('click', function () { A.openWorkspaceModal(); });
+        A.qsa('[data-switch]', root).forEach(function (b) {
+          b.addEventListener('click', function () {
+            guard(function () {
+              return S.switchWorkspace(b.getAttribute('data-switch'))
+                .then(function () { location.href = 'dashboard.html'; });
+            });
+          });
+        });
+        var del = A.qs('#btnDelWs');
+        if (del) del.addEventListener('click', openDeleteWorkspace);
+      }
+
+      if (tab === 'plan') {
+        var cp = A.qs('#btnChangePlan');
+        if (cp) cp.addEventListener('click', function () { A.openPlanModal(); });
+      }
+    }
+
+    /* high-risk: show the blast radius, require the name, then a second click */
+    function openDeleteWorkspace() {
+      var w = S.workspace;
+      if (!w) return;
+      S.workspaceImpact(w.id).then(function (info) {
+        var body = document.createElement('div');
+        body.className = 'del-dialog';
+        body.innerHTML =
+          '<p class="del-hint">' + A.esc(A.t('set.delWsHint', { name: w.name })) + '</p>' +
+          '<p class="del-lead">' + A.esc(A.t('set.delWsLead')) + '</p>' +
+          '<dl class="del-usage">' +
+            '<div><dt>' + A.esc(A.t('tr.designs')) + '</dt><dd>' + info.designs + '</dd></div>' +
+            '<div><dt>' + A.esc(A.t('p.projects.title')) + '</dt><dd>' + info.projects + '</dd></div>' +
+            '<div><dt>' + A.esc(A.t('p.collections.title')) + '</dt><dd>' + info.collections + '</dd></div>' +
+            '<div><dt>' + A.esc(A.t('use.files')) + '</dt><dd>' + info.files + '</dd></div>' +
+            '<div><dt>' + A.esc(A.t('side.brand')) + '</dt><dd>' + info.brands + '</dd></div>' +
+            '<div><dt>' + A.esc(A.t('side.website')) + '</dt><dd>' + info.websites + '</dd></div>' +
+          '</dl>' +
+          '<p class="del-note">' + A.esc(A.t('set.delWsNote')) + '</p>' +
+          '<div class="field"><label class="field-label">' + A.esc(A.t('set.typeToConfirm', { name: w.name })) + '</label>' +
+            '<input class="input" id="delConfirm" type="text" placeholder="' + A.esc(w.name) + '"></div>';
+        A.modal({
+          title: A.t('set.deleteWs'), body: body, size: 'sm', focus: false,
+          footer: [
+            { label: A.t('act.cancel'), onClick: function (c) { c(); } },
+            { label: A.t('set.deleteWs'), danger: true, primary: true, onClick: function (c) {
+              var typed = A.qs('#delConfirm', body).value.trim();
+              if (typed !== w.name) { A.toast(A.t('set.typeToConfirm', { name: w.name })); return; }
+              guard(function () {
+                return S.deleteWorkspace(w.id, typed).then(function () {
+                  c();
+                  A.toast(A.t('set.wsDeleted'));
+                  location.href = 'dashboard.html';
+                });
+              });
+            } }
+          ]
+        });
+      }).catch(function (e) { A.toast(e && e.message || A.t('err.generic'), { error: true }); });
+    }
+
+    A.page(render);
+  })();
+  </script>
+</body>
+</html>

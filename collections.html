@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="p.collections.title">合集 — Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' fill='none' stroke='%231D1B18' stroke-width='2.5'/><rect x='10' y='10' width='12' height='12' fill='%231D1B18'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="dash" data-page="collections">
+
+  <aside class="dash-side" id="dashSide"></aside>
+  <div class="side-scrim" id="sideScrim"></div>
+
+  <div class="dash-main">
+    <header class="dash-top">
+      <div class="crumb">
+        <button class="menu-btn" id="menuBtn" type="button" aria-label="打开菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <a href="dashboard.html" data-i18n="side.myspace">我的空间</a>
+        <span class="sep">/</span>
+        <span data-i18n="p.collections.title">合集</span>
+      </div>
+      <div class="top-actions">
+        <div class="lang-switch" role="group" aria-label="语言切换 / Language">
+          <button type="button" data-lang="zh" class="is-on">中文</button>
+          <span class="sep"></span>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="index.html"><span data-i18n="top.viewsite">查看网站</span><span class="arr arr-up"></span></a>
+      </div>
+    </header>
+
+    <main class="page">
+      <div class="page-head">
+        <div>
+          <h1 data-i18n="p.collections.title">合集</h1>
+          <p class="ph-sub" data-i18n="p.collections.sub">把你的设计整理成属于自己的系列。</p>
+        </div>
+        <div class="ph-actions">
+          <button class="btn" id="newCollBtn" type="button">
+            <span data-i18n="act.newCollection">新建合集</span><span class="arr"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search-box">
+          <input class="input" id="collSearch" type="search" placeholder="搜索合集…" data-i18n-ph="ph.searchCollection">
+        </div>
+        <div class="chips" id="collChips"></div>
+      </div>
+
+      <div id="collGrid"></div>
+    </main>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+  (function () {
+    var A = window.StudioApp, S = window.StudioStore, I = window.StudioI18n;
+    var grid = A.qs('#collGrid');
+
+    function pillFor(status) {
+      return '<span class="pill pill--' + status + ' pill--sm">' + A.esc(S.collStatusLabel(status, A.lang())) + '</span>';
+    }
+
+    function card(c) {
+      var n = c.designIds.length;
+      var a = document.createElement('a');
+      a.className = 'coll-card';
+      a.href = 'collection.html?id=' + c.id;
+      a.innerHTML =
+        '<div class="cc-fig"><img src="' + A.img(c.cover) + '" alt="" loading="lazy"></div>' +
+        '<div class="cc-body">' +
+          '<div class="cc-top"><h3 class="cc-name">' + A.esc(S.name(c, A.lang())) + '</h3>' +
+            '<span class="cc-cue">' + A.esc(A.t('act.viewCollection')) + '<span class="arr"></span></span></div>' +
+          '<div class="cc-sub"><span>' + n + ' ' + A.esc(A.t('unit.designs')) + '</span>' +
+            '<span>' + A.esc(A.t('meta.updated')) + ' ' + A.esc(A.rel(c.updatedAt)) + '</span>' +
+            pillFor(c.status) + '</div>' +
+          '<p class="cc-desc">' + A.esc(S.desc(c, A.lang())) + '</p>' +
+        '</div>';
+      return a;
+    }
+
+    var state = { q: '', status: 'all' };
+
+    function chip(label, val, on) {
+      return '<button class="chip' + (on ? ' is-on' : '') + '" data-status="' + val + '" type="button">' + A.esc(label) + '</button>';
+    }
+
+    function render() {
+      var chips = A.qs('#collChips');
+      chips.innerHTML =
+        chip(A.t('f.all'), 'all', state.status === 'all') + '<span class="chip-sep"></span>' +
+        chip(S.collStatusLabel('public', A.lang()), 'public', state.status === 'public') +
+        chip(S.collStatusLabel('draft', A.lang()), 'draft', state.status === 'draft');
+
+      var list = S.collections().filter(function (c) {
+        if (state.status !== 'all' && c.status !== state.status) return false;
+        if (state.q) {
+          var s = state.q.toLowerCase();
+          if ((c.name + ' ' + c.nameEn + ' ' + c.description).toLowerCase().indexOf(s) === -1) return false;
+        }
+        return true;
+      });
+
+      if (!S.collections().length) {
+        grid.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="es-mark"></div>' +
+            '<h2 class="es-title">' + A.esc(A.t('empty.collections.title')) + '</h2>' +
+            '<p class="es-hint">' + A.esc(A.t('empty.collections.hint')) + '</p>' +
+            '<div class="es-btn"><button class="btn" id="emptyNewColl" type="button">' +
+              '<span>' + A.esc(A.t('empty.collections.btn')) + '</span><span class="arr"></span></button></div>' +
+          '</div>';
+        var b = A.qs('#emptyNewColl');
+        if (b) b.addEventListener('click', create);
+        return;
+      }
+
+      if (!list.length) {
+        grid.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="es-mark"></div>' +
+            '<h2 class="es-title">' + A.esc(A.t('empty.library.title')) + '</h2>' +
+            '<p class="es-hint">' + A.esc(A.t('empty.library.hint')) + '</p>' +
+          '</div>';
+        return;
+      }
+
+      grid.innerHTML = '<div class="coll-grid"></div>';
+      var g = A.qs('.coll-grid', grid);
+      list.forEach(function (c) { g.appendChild(card(c)); });
+    }
+
+    function create() {
+      A.openCollectionModal({
+        onSaved: function (coll, isNew) {
+          if (isNew && coll) A.go('collection.html?id=' + coll.id + '&new=1');
+          else render();
+        }
+      });
+    }
+
+    A.qs('#newCollBtn').addEventListener('click', create);
+    A.qs('#collChips').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-status]');
+      if (!b) return;
+      state.status = b.getAttribute('data-status');
+      render();
+    });
+    A.qs('#collSearch').addEventListener('input', function (e) {
+      state.q = e.target.value.trim();
+      render();
+    });
+
+    A.page(render);
+  })();
+  </script>
+</body>
+</html>
